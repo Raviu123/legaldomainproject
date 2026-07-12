@@ -1,0 +1,105 @@
+# =============================================================
+# BACKEND .gitignore — FastAPI / Python
+# =============================================================
+
+# ──────────────────────────────────────────────
+# Python virtual environments
+# ──────────────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+.env/
+
+# ──────────────────────────────────────────────
+# Python bytecode & caches
+# ──────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+.Python
+
+# ──────────────────────────────────────────────
+# Distribution / packaging
+# ──────────────────────────────────────────────
+build/
+dist/
+*.egg-info/
+*.egg
+MANIFEST
+.eggs/
+wheels/
+pip-wheel-metadata/
+
+# ──────────────────────────────────────────────
+# Test & coverage artefacts
+# ──────────────────────────────────────────────
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+nosetests.xml
+pytest.xml
+*.lcov
+
+# ──────────────────────────────────────────────
+# Linting / type-checking caches
+# ──────────────────────────────────────────────
+.ruff_cache/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pytype/
+.pyre/
+
+# ──────────────────────────────────────────────
+# Jupyter / IPython
+# ──────────────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb
+
+# ──────────────────────────────────────────────
+# Secrets & environment
+# ──────────────────────────────────────────────
+.env
+.env.local
+.env.*
+!.env.example
+
+# ──────────────────────────────────────────────
+# Logs
+# ──────────────────────────────────────────────
+logs/
+*.log
+!logs/.gitkeep
+
+# ──────────────────────────────────────────────
+# Docker (keep compose files, ignore local overrides)
+# ──────────────────────────────────────────────
+docker-compose.override.yml
+
+# ──────────────────────────────────────────────
+# Celery / task queues
+# ──────────────────────────────────────────────
+celerybeat-schedule
+celerybeat.pid
+
+# ──────────────────────────────────────────────
+# Local DB / vector-store snapshots (if dumped locally)
+# ──────────────────────────────────────────────
+*.db
+*.sqlite3
+qdrant_storage/
+neo4j_data/
+
+# ──────────────────────────────────────────────
+# OS / editor
+# ──────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp

@@ -1,0 +1,7 @@
+# --- Backend framework ---
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
+
+

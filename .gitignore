@@ -1,0 +1,53 @@
+# =============================================================
+# ROOT / GLOBAL .gitignore — legaldata_graphRag monorepo
+# =============================================================
+
+# ──────────────────────────────────────────────
+# OS & Editor cruft
+# ──────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ──────────────────────────────────────────────
+# Secrets & environment files
+# ──────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+# Keep the example template
+!.env.example
+
+# ──────────────────────────────────────────────
+# Raw & normalized data (can be large / scraped)
+# Keep the folder structure via .gitkeep files
+# ──────────────────────────────────────────────
+data/raw/*
+data/normalized/*
+!data/raw/.gitkeep
+!data/normalized/.gitkeep
+
+# ──────────────────────────────────────────────
+# SSL / private keys
+# ──────────────────────────────────────────────
+*.pem
+*.key
+*.crt
+*.p12
+
+# ──────────────────────────────────────────────
+# Logs (root-level if any)
+# ──────────────────────────────────────────────
+*.log
+logs/
+!logs/.gitkeep
