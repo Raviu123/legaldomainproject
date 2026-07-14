@@ -1,0 +1,55 @@
+"""Ingestion parser registry.
+
+This is the single place that maps a LawIdentifier to its concrete parser class.
+To add a new law:
+  1. Create app/ingestion/parsers/<parser_module>.py implementing BaseLegalParser.
+  2. Import it here and add it to the PARSER_REGISTRY dict.
+  3. Register the law's metadata in app/core/constants.py :: LAW_REGISTRY.
+
+The run_pipeline() function in run.py calls get_parser() to dynamically
+dispatch to the correct parser without any per-law if/elif branching.
+"""
+
+from typing import Dict, Type
+
+from app.core.constants import LawIdentifier
+from app.ingestion.parsers.base import BaseLegalParser
+from app.ingestion.parsers.eur_lex_gdpr import EurLexGdprParser
+from app.ingestion.parsers.india_code_dpdp import IndiaCodeDpdpParser
+
+
+# ---------------------------------------------------------------------------
+# Registry: LawIdentifier -> Parser class
+# ---------------------------------------------------------------------------
+
+PARSER_REGISTRY: Dict[LawIdentifier, Type[BaseLegalParser]] = {
+    LawIdentifier.GDPR: EurLexGdprParser,
+    LawIdentifier.DPDP: IndiaCodeDpdpParser,
+    # Uncomment as parsers are implemented:
+    # LawIdentifier.AI_ACT:       EurLexAiActParser,
+    # LawIdentifier.UK_GDPR:      UkLegislationUkGdprParser,
+    # LawIdentifier.CCPA:         UsLeginfoScraper,
+    # LawIdentifier.LGPD:         BrPlanaltoParser,
+}
+
+
+def get_parser(law: LawIdentifier) -> BaseLegalParser:
+    """Returns an instantiated parser for the given law.
+
+    Args:
+        law: The LawIdentifier of the law to parse.
+
+    Returns:
+        An instantiated BaseLegalParser concrete subclass.
+
+    Raises:
+        NotImplementedError: If no parser is registered for the given law.
+    """
+    parser_cls = PARSER_REGISTRY.get(law)
+    if parser_cls is None:
+        raise NotImplementedError(
+            f"No parser registered for law '{law.value}'. "
+            f"Implement app/ingestion/parsers/<module>.py and register it in "
+            f"app/ingestion/registry.py."
+        )
+    return parser_cls()

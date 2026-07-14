@@ -9,8 +9,8 @@ from qdrant_client.models import PointStruct
 
 from app.core.logging import logger, qdrant_logger
 from app.models.legal_unit import LegalUnit
-from app.vector.client import qdrant_client_manager
-from app.vector.embeddings import embedding_model
+from app.db.vector.client import qdrant_client_manager
+from app.db.vector.embeddings import embedding_model
 
 
 def get_deterministic_uuid(unit_id: str) -> str:

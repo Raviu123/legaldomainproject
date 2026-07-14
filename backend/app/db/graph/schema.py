@@ -8,7 +8,7 @@ import re
 
 from app.core.constants import RelationshipType
 from app.core.logging import logger, neo4j_logger
-from app.graph.client import Neo4jClient
+from app.db.graph.client import Neo4jClient
 from app.models.legal_unit import LegalUnit
 
 

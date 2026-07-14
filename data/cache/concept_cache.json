@@ -1,0 +1,804 @@
+{
+  "dpdp:preamble": [
+    "Data Protection",
+    "Privacy Rights",
+    "Lawful Processing Of Personal Data",
+    "Digital Personal Data Regulation",
+    "Individual Rights To Data Protection"
+  ],
+  "dpdp:sec1": [
+    "Short Title Of Legislation",
+    "Commencement Provisions",
+    "Effective Date Of The Act",
+    "Government Notification In The Official Gazette",
+    "Staggered Commencement Of Different Provisions"
+  ],
+  "dpdp:sec2": [
+    "Data Fiduciary",
+    "Data Principal",
+    "Data Processor",
+    "Personal Data",
+    "Data Protection Board",
+    "Consent Manager",
+    "Personal Data Breach"
+  ],
+  "dpdp:sec3": [
+    "Territorial Scope Of Data Protection",
+    "Extraterritorial Application To Foreign Processing",
+    "Exemption For Personal Or Domestic Use",
+    "Exemption For Publicly Disclosed Personal Data",
+    "Definition Of Digital Personal Data"
+  ],
+  "dpdp:sec6": [
+    "Consent Requirements And Validity",
+    "Right To Withdraw Consent And Its Consequences",
+    "Consent Manager Obligations And Registration",
+    "Legitimate Uses Of Personal Data By Data Fiduciaries",
+    "Data Fiduciary Burden Of Proof For Consent",
+    "Invalidity Of Consent Provisions That Violate Law"
+  ],
+  "dpdp:sec8": [
+    "Data Fiduciary Obligations And Responsibilities",
+    "Contractual Requirements For Engaging Data Processors",
+    "Data Breach Notification And Grievance Redressal",
+    "Consent And Special Protection For Children And Persons With Disabilities",
+    "Designation And Duties Of Significant Data Fiduciaries",
+    "Data Retention, Erasure, And Purpose Limitation Obligations"
+  ],
+  "dpdp:sec11": [
+    "Right Of Access To Personal Data",
+    "Right To Rectification, Completion, Updating And Erasure",
+    "Exceptions For Data Sharing With Law Enforcement",
+    "Grievance Redressal Mechanism For Data Principals",
+    "Obligations Of Data Fiduciaries And Consent Managers"
+  ],
+  "dpdp:sec14": [
+    "Data Principal Nomination And Representation",
+    "Definition Of Incapacity",
+    "Duties Of Data Principal",
+    "Compliance With Applicable Laws",
+    "Prohibition Of Impersonation And False Grievances",
+    "Right To Correction And Erasure"
+  ],
+  "dpdp:sec16": [
+    "Data Fiduciary Obligations",
+    "Cross-Border Transfer Of Personal Data",
+    "Government Notification Authority",
+    "Higher Degree Of Data Protection Under Indian Law",
+    "Applicability Of Existing Indian Data Protection Statutes"
+  ],
+  "dpdp:sec17": [
+    "Exemptions For Processing Personal Data In Legal Enforcement And Judicial Functions",
+    "Exemptions For Processing Personal Data Related To Financial Defaults And Loan Information",
+    "State And Government Exemptions For Sovereignty, Security, Public Order, And Foreign Relations",
+    "Exemptions For Research, Archiving, And Statistical Purposes",
+    "Exemptions For Specific Data Fiduciaries Such As Startups"
+  ],
+  "dpdp:sec21": [
+    "Disqualification Criteria For Public Office",
+    "Insolvency As Ground For Disqualification",
+    "Conviction Involving Moral Turpitude",
+    "Physical Or Mental Incapacity",
+    "Conflict Of Interest",
+    "Right To Be Heard Before Removal (Due Process)"
+  ],
+  "dpdp:sec22": [
+    "Resignation Of Chairperson Or Member",
+    "Filling Of Vacancies And Appointment Procedures",
+    "Post\u2011Employment Restriction (One\u2011Year Cooling\u2011Off Period)",
+    "Requirement For Central Government Approval For Subsequent Employment",
+    "Disclosure Of Subsequent Employment To The Central Government",
+    "Vacancies Caused By Death, Removal, Or Other Reasons"
+  ],
+  "dpdp:sec23": [
+    "Board Meeting Procedures",
+    "Validity Of Board Actions Despite Vacancies",
+    "Defects In Board Member Appointments",
+    "Procedural Irregularities And Their Effect On Merits",
+    "Delegation Of Chairperson Duties",
+    "Use Of Digital Means For Board Transactions"
+  ],
+  "dpdp:sec24": [
+    "Appointment Of Officers And Employees",
+    "Central Government Approval",
+    "Terms And Conditions Of Service",
+    "Statutory Authority Of The Board",
+    "Administrative Law"
+  ],
+  "dpdp:sec25": [
+    "Public Officers Under The Indian Penal Code",
+    "Section 21 Of The Indian Penal Code",
+    "Board Governance And Administration",
+    "Powers And Duties Of The Chairperson",
+    "Authorization Of Board Officers"
+  ],
+  "dpdp:sec29": [
+    "Appeal Filing Requirements And Time Limits",
+    "Appellate Tribunal'S Powers To Confirm, Modify Or Set Aside Orders And Execute Them As Civil Court Decrees",
+    "Procedures For Handling Appeals, Including Digital Filing And Hearing",
+    "Mediation And Voluntary Undertakings As Alternative Dispute Resolution Mechanisms",
+    "Obligations To Record Reasons For Delay In Disposing Appeals Within Six Months"
+  ],
+  "dpdp:sec34": [
+    "Penalties",
+    "Consolidated Fund Of India",
+    "Board'S Authority Under The Act",
+    "Crediting Of Sums To The Consolidated Fund",
+    "Realisation Of Penalties"
+  ],
+  "dpdp:sec35": [
+    "Legal Immunity",
+    "Good Faith Defense",
+    "Governmental Entity Liability",
+    "Civil And Criminal Proceedings",
+    "Statutory Protection"
+  ],
+  "dpdp:sec36": [
+    "Central Government Authority",
+    "Regulatory Board Powers",
+    "Data Fiduciary Obligations",
+    "Intermediary Information Disclosure",
+    "Statutory Information Request"
+  ],
+  "dpdp:sec37": [
+    "Central Government Authority To Block Data And Impose Monetary Penalties",
+    "Intermediary Obligation To Comply With Government Directions",
+    "Supremacy Of The Act Over Other Laws In Case Of Conflict",
+    "Exclusion Of Civil Court Jurisdiction Over Matters Under The Board\u2019S Powers",
+    "Rule\u2011Making Power Of The Central Government To Prescribe Regulations Under The Act",
+    "Data Fiduciary Duties And Consent Management Requirements"
+  ],
+  "dpdp:sec41": [
+    "Rulemaking And Notification Procedures Under Sections 16 And 42",
+    "Parliamentary Laying Of Rules And Notifications",
+    "Time Limits For Parliamentary Consideration (30 Days, Sessions)",
+    "Modification Or Annulment Of Rules/Notifications By Both Houses",
+    "Effect Of Modifications On Prior Actions Taken Under The Rule/Notification",
+    "Validity Of Prior Actions Despite Subsequent Amendment Or Repeal"
+  ],
+  "dpdp:sec42": [
+    "Central Government'S Authority To Amend Statutory Schedules",
+    "Limitation On Increase Of Penalties",
+    "Use Of Notification To Effect Amendments",
+    "Effective Date Of Amendment Upon Notification",
+    "Amendments Treated As Enacted By The Act"
+  ],
+  "dpdp:sec43": [
+    "Central Government'S Power To Amend Legislation To Remove Difficulties",
+    "Amendments To The Telecom Regulatory Authority Of India Act",
+    "Appellate Tribunals Under The Information Technology Act, Airports Economic Regulatory Authority Act, And Digital Personal Data Protection Act",
+    "Amendments To The Information Technology Act, 2000",
+    "Amendments To The Right To Information Act, 2005 Regarding Personal Information",
+    "Penalty Provisions For Breaches Of The Act"
+  ],
+  "dpdp:sec4": [
+    "Breach Of Obligations",
+    "Data Fiduciary Responsibilities",
+    "Section 10 Statutory Provision",
+    "Monetary Damages (150 Crore Rupees)",
+    "Data Protection Law"
+  ],
+  "dpdp:sec5": [
+    "Breach Of Duty",
+    "Section 15",
+    "Monetary Penalty",
+    "Fine Up To Ten Thousand Rupees",
+    "Statutory Obligations"
+  ],
+  "dpdp:sec7": [
+    "Breach Of Statutory Provisions",
+    "Penalties For Violations",
+    "Government Of India Regulations",
+    "Official Publication And Authentication",
+    "Controller Of Publications"
+  ],
+  "gdpr:recital1": [
+    "Data Protection",
+    "Fundamental Rights",
+    "Charter Of Fundamental Rights Of The European Union",
+    "Treaty On The Functioning Of The European Union",
+    "Processing Of Personal Data"
+  ],
+  "gdpr:recital2": [
+    "Protection Of Personal Data",
+    "Fundamental Rights And Freedoms",
+    "Data Processing Regulations",
+    "Eu Internal Market",
+    "Economic And Social Progress"
+  ],
+  "gdpr:recital3": [
+    "Data Protection",
+    "Fundamental Rights And Freedoms",
+    "Personal Data Processing",
+    "Free Flow Of Personal Data",
+    "Eu Directive 95/46/Ec"
+  ],
+  "gdpr:recital4": [
+    "Protection Of Personal Data",
+    "Principle Of Proportionality",
+    "Fundamental Rights (Privacy, Family Life, Home And Communications)",
+    "Right To An Effective Remedy And Fair Trial",
+    "Freedom To Conduct A Business"
+  ],
+  "gdpr:recital5": [
+    "Cross-Border Personal Data Transfers",
+    "Data Protection And Privacy In The Eu",
+    "Cooperation Between National Authorities Under Union Law",
+    "Internal Market Integration",
+    "Public And Private Sector Data Exchange"
+  ],
+  "gdpr:recital6": [
+    "Protection Of Personal Data",
+    "Cross-Border Data Transfers",
+    "Data Collection And Sharing",
+    "Impact Of Technology On Privacy",
+    "Free Flow Of Personal Data Within The Eu",
+    "Transfer Of Personal Data To Third Countries And International Organisations"
+  ],
+  "gdpr:recital7": [
+    "Data Protection Framework",
+    "Enforcement Of Data Protection",
+    "Personal Data Control",
+    "Legal Certainty",
+    "Digital Economy Trust"
+  ],
+  "gdpr:recital8": [
+    "Incorporation Of Eu Regulations Into National Law",
+    "Member State Legislative Authority",
+    "Legal Coherence And Comprehensibility",
+    "Specification And Restriction Of Regulatory Rules",
+    "Supremacy Of Eu Law"
+  ],
+  "gdpr:recital9": [
+    "Directive 95/46/Ec",
+    "Fragmentation Of Data Protection Law",
+    "Right To Protection Of Personal Data",
+    "Free Flow Of Personal Data Within The Eu",
+    "Legal Uncertainty In Data Protection",
+    "Impact On Competition And Economic Activities"
+  ],
+  "gdpr:recital10": [
+    "Eu Data Protection Harmonization",
+    "Processing Personal Data For Legal Obligations And Public Interest",
+    "Member State Margin Of Manoeuvre And National Provisions",
+    "Sector\u2011Specific Data Protection Laws",
+    "Special Categories Of Personal Data (Sensitive Data)"
+  ],
+  "gdpr:recital11": [
+    "Personal Data Protection",
+    "Rights Of Data Subjects",
+    "Obligations Of Data Controllers And Processors",
+    "Monitoring And Compliance Mechanisms",
+    "Sanctions For Data Protection Infringements",
+    "Eu-Wide Data Protection Framework"
+  ],
+  "gdpr:recital12": [
+    "Article 16(2) Tfeu",
+    "Data Protection Of Natural Persons",
+    "Free Movement Of Personal Data",
+    "Eu Institutional Competence (European Parliament And Council)",
+    "Processing Of Personal Data"
+  ],
+  "gdpr:recital13": [
+    "Data Protection And Privacy Rights Of Natural Persons",
+    "Free Movement Of Personal Data Within The Eu Internal Market",
+    "Obligations And Responsibilities Of Data Controllers And Processors",
+    "Cooperation Among Supervisory Authorities And Enforcement Sanctions",
+    "Derogations And Specific Provisions For Micro, Small And Medium-Sized Enterprises (Smes)"
+  ],
+  "gdpr:recital14": [
+    "Data Protection",
+    "Personal Data Processing",
+    "Natural Persons",
+    "Legal Persons",
+    "Scope Of Regulation",
+    "Jurisdiction"
+  ],
+  "gdpr:recital15": [
+    "Data Protection Of Natural Persons",
+    "Technological Neutrality",
+    "Automated And Manual Processing Of Personal Data",
+    "Definition Of Filing System",
+    "Scope Of The Regulation"
+  ],
+  "gdpr:recital16": [
+    "Fundamental Rights And Freedoms",
+    "Free Flow Of Personal Data",
+    "National Security",
+    "Member State Processing Of Personal Data",
+    "Common Foreign And Security Policy"
+  ],
+  "gdpr:recital17": [
+    "Processing Of Personal Data By Eu Institutions, Bodies, Offices And Agencies",
+    "Regulation (Ec) No\u202f45/2001",
+    "Adaptation Of Union Legal Acts To The Principles Of The Gdpr",
+    "Eu Data Protection Framework",
+    "Implementation Timeline For Aligning Regulations With The Gdpr"
+  ],
+  "gdpr:recital18": [
+    "Personal Data Processing",
+    "Personal/Household Activity Exemption",
+    "Data Controller",
+    "Data Processor",
+    "Scope Of Gdpr",
+    "Provision Of Processing Services"
+  ],
+  "gdpr:recital19": [
+    "Law Enforcement Data Processing",
+    "Directive (Eu) 2016/680",
+    "Gdpr Applicability And Exemptions",
+    "Member State Specific Provisions And Derogations",
+    "Public Security And Anti\u2011Money Laundering Measures",
+    "Processing Of Personal Data By Private Bodies"
+  ],
+  "gdpr:recital20": [
+    "Processing Of Personal Data By Courts And Judicial Authorities",
+    "Judicial Independence In Data Processing",
+    "Competence Of Supervisory Authorities Over Judicial Data Processing",
+    "Designation Of Specific Judicial Bodies For Supervision Of Data Processing",
+    "Compliance With Data Protection Regulation And Handling Of Related Complaints"
+  ],
+  "gdpr:recital21": [
+    "Directive 2000/31/Ec",
+    "Liability Rules For Intermediary Service Providers",
+    "Free Movement Of Information Society Services",
+    "Internal Market Of The Eu",
+    "Relationship Between Eu Regulations And Directives"
+  ],
+  "gdpr:recital22": [
+    "Processing Of Personal Data",
+    "Territorial Scope Of Gdpr",
+    "Establishment Of A Controller Or Processor",
+    "Extrateritorial Application Of Data Protection Law",
+    "Stable Arrangements Concept",
+    "Legal Form Of Establishment"
+  ],
+  "gdpr:recital23": [
+    "Territorial Scope Of The Gdpr",
+    "Extraterritorial Applicability To Non\u2011Eu Controllers And Processors",
+    "Offering Goods Or Services To Data Subjects In The Union",
+    "Criteria For Determining Intention To Target Eu Market",
+    "Protection Of Natural Persons' Personal Data"
+  ],
+  "gdpr:recital24": [
+    "Extraterritorial Application Of The Gdpr",
+    "Monitoring Of Data Subjects' Behavior",
+    "Profiling Of Natural Persons",
+    "Processing Of Personal Data By Non\u2011Eu Controllers Or Processors",
+    "Use Of Personal Data For Decision\u2011Making And Prediction"
+  ],
+  "gdpr:recital25": [
+    "Member State Law",
+    "Public International Law",
+    "Data Protection Regulation",
+    "Extraterritorial Application",
+    "Controllers Outside The Union",
+    "Diplomatic And Consular Posts"
+  ],
+  "gdpr:recital26": [
+    "Personal Data",
+    "Identifiability Of Natural Persons",
+    "Pseudonymisation",
+    "Anonymous Information",
+    "Data Protection Principles",
+    "Processing Exemptions For Statistical And Research Purposes"
+  ],
+  "gdpr:recital27": [
+    "Personal Data Of Deceased Persons",
+    "Applicability Of The Regulation",
+    "Member State Authority To Regulate Processing Of Deceased Persons' Data",
+    "Processing Of Personal Data",
+    "Data Protection Law"
+  ],
+  "gdpr:recital28": [
+    "Pseudonymisation",
+    "Personal Data",
+    "Data Subjects",
+    "Data Controllers And Processors",
+    "Data Protection Obligations",
+    "Regulation"
+  ],
+  "gdpr:recital29": [
+    "Pseudonymisation",
+    "Personal Data Processing",
+    "Data Controller Responsibilities",
+    "Technical And Organisational Measures",
+    "Separation Of Identifying Information",
+    "Authorized Personnel Within The Controller"
+  ],
+  "gdpr:recital30": [
+    "Personal Data",
+    "Online Identifiers",
+    "Profiling",
+    "Data Protection",
+    "Privacy",
+    "Surveillance"
+  ],
+  "gdpr:recital31": [
+    "Legal Obligation For Public Authorities To Receive Personal Data",
+    "Data Protection Compliance And Purpose Limitation For Processing Personal Data",
+    "Requirement For Written, Reasoned And Occasional Disclosure Requests",
+    "Prohibition On Bulk Or Systematic Access To Entire Filing Systems",
+    "Restrictions On Interconnection Of Filing Systems By Public Authorities"
+  ],
+  "gdpr:recital32": [
+    "Consent",
+    "Freely Given And Specific Consent",
+    "Affirmative Act Requirement",
+    "Invalidity Of Silence Or Pre\u2011Ticked Boxes",
+    "Scope Of Consent For Multiple Processing Purposes",
+    "Requirements For Electronic Consent Requests"
+  ],
+  "gdpr:recital33": [
+    "Purpose Limitation In Data Processing",
+    "Consent For Scientific Research",
+    "Data Subject Rights To Selective Consent",
+    "Ethical Standards For Scientific Research",
+    "Personal Data Protection Requirements"
+  ],
+  "gdpr:recital34": [
+    "Genetic Data",
+    "Personal Data",
+    "Data Protection",
+    "Privacy Rights",
+    "Definition Of Genetic Characteristics",
+    "Biological Sample Analysis"
+  ],
+  "gdpr:recital35": [
+    "Health-Related Personal Data",
+    "Directive\u202f2011/24/Eu On Cross\u2011Border Health Care",
+    "Genetic And Biometric Data",
+    "Unique Health Identifiers",
+    "Processing Of Medical Information"
+  ],
+  "gdpr:recital36": [
+    "Main Establishment Of A Controller",
+    "Criteria For Determining Main Establishment",
+    "Lead Supervisory Authority",
+    "Main Establishment Of A Processor",
+    "Supervisory Authority Concerned And Cooperation Procedure",
+    "Group Of Undertakings And Controlling Undertaking"
+  ],
+  "gdpr:recital37": [
+    "Group Of Undertakings",
+    "Controlling Undertaking",
+    "Dominant Influence",
+    "Personal Data Processing",
+    "Data Protection Rules Implementation"
+  ],
+  "gdpr:recital38": [
+    "Children'S Personal Data Protection",
+    "Parental Responsibility Consent Requirements",
+    "Use Of Children'S Data For Marketing And Profiling",
+    "Collection Of Data From Services Offered Directly To Children",
+    "Exemption Of Parental Consent For Preventive Or Counselling Services"
+  ],
+  "gdpr:recital39": [
+    "Lawful And Fair Processing",
+    "Transparency",
+    "Purpose Limitation",
+    "Data Minimization",
+    "Storage Limitation",
+    "Accuracy Of Personal Data",
+    "Security And Confidentiality"
+  ],
+  "gdpr:recital40": [
+    "Lawful Basis For Processing Personal Data",
+    "Consent Of The Data Subject",
+    "Legal Obligation Of The Controller",
+    "Performance Of A Contract",
+    "Legitimate Basis Under Gdpr"
+  ],
+  "gdpr:recital41": [
+    "Legal Basis And Legislative Measures",
+    "Constitutional Order Of Member States",
+    "Principle Of Legal Certainty And Foreseeability",
+    "Case Law Of The Court Of Justice Of The European Union",
+    "European Court Of Human Rights Jurisprudence"
+  ],
+  "gdpr:recital42": [
+    "Data Subject Consent",
+    "Demonstration Of Consent By The Controller",
+    "Informed Consent Requirements",
+    "Unfair Contract Terms",
+    "Freedom Of Choice And Withdrawal Of Consent"
+  ],
+  "gdpr:recital43": [
+    "Freely Given Consent",
+    "Legal Basis For Personal Data Processing",
+    "Power Imbalance Between Data Subject And Controller",
+    "Public Authority As Data Controller",
+    "Separate Consent For Distinct Processing Operations",
+    "Consent Tied To Contract Performance"
+  ],
+  "gdpr:recital44": [
+    "Lawful Processing",
+    "Contractual Necessity",
+    "Intent To Enter Into A Contract",
+    "Data Protection Law"
+  ],
+  "gdpr:recital45": [
+    "Legal Basis For Data Processing Under Union Or Member State Law",
+    "Processing Necessary For Public Interest Tasks",
+    "Processing By Official Authority",
+    "Determination Of Data Controller And Its Legal Nature",
+    "Purpose Limitation, Storage Period And Other Lawful Processing Conditions",
+    "Public Health And Social Protection As Public Interest Processing"
+  ],
+  "gdpr:recital46": [
+    "Lawful Basis For Processing Personal Data",
+    "Vital Interests Of The Data Subject",
+    "Public Interest Grounds",
+    "Humanitarian Purposes In Data Processing",
+    "Processing Of Personal Data During Emergencies And Disasters"
+  ],
+  "gdpr:recital47": [
+    "Legitimate Interest As A Legal Basis For Processing",
+    "Balancing Test Between Controller Interests And Data Subject Rights",
+    "Reasonable Expectations Of Data Subjects",
+    "Processing By Public Authorities",
+    "Processing For Fraud Prevention",
+    "Processing For Direct Marketing"
+  ],
+  "gdpr:recital48": [
+    "Legitimate Interest For Data Processing",
+    "Data Controller Within A Group Of Undertakings",
+    "Internal Administrative Processing Of Personal Data",
+    "Cross\u2011Border Transfer Of Personal Data To Third Countries",
+    "General Principles Of Data Protection For Intra\u2011Group Transfers"
+  ],
+  "gdpr:recital49": [
+    "Processing Of Personal Data For Security Purposes",
+    "Legitimate Interest Of The Data Controller",
+    "Network And Information Security Obligations",
+    "Role Of Certs And Csirts In Data Protection",
+    "Compliance With Confidentiality, Integrity, And Availability Principles"
+  ],
+  "gdpr:recital50": [
+    "Compatibility Of Further Processing",
+    "Legal Basis For Processing",
+    "Public Interest And Official Authority",
+    "Data Subject Consent And Rights",
+    "Legitimate Interest And Transmission To Authorities",
+    "Obligation Of Secrecy"
+  ],
+  "gdpr:recital51": [
+    "Special Categories Of Personal Data",
+    "Racial Or Ethnic Origin Data",
+    "Biometric Data Processing",
+    "Explicit Consent As A Lawful Basis",
+    "Member State Specific Data Protection Provisions",
+    "Derogations From The Prohibition On Processing Sensitive Data"
+  ],
+  "gdpr:recital52": [
+    "Derogation From Gdpr Prohibition On Processing Special Categories Of Personal Data",
+    "Processing Of Health-Related Personal Data For Public Health Purposes",
+    "Processing Of Personal Data In Employment And Social Protection Law Contexts",
+    "Processing Of Personal Data For Scientific, Historical Or Statistical Research Purposes",
+    "Processing Of Personal Data For The Establishment, Exercise Or Defence Of Legal Claims"
+  ],
+  "gdpr:recital53": [
+    "Special Categories Of Personal Data (Health Data)",
+    "Lawful Processing For Public Interest And Health\u2011Related Purposes",
+    "Obligations Of Professional Secrecy In Data Processing",
+    "Member State Specific Measures For Genetic And Biometric Data",
+    "Free Flow Of Personal Data Within The Eu",
+    "Harmonised Conditions Under The Eu Data Protection Regulation"
+  ],
+  "gdpr:recital54": [
+    "Special Categories Of Personal Data",
+    "Public Interest Exception To Consent Requirements",
+    "Data Protection Safeguards For Health Data",
+    "Definition Of Public Health Under Regulation (Ec) No 1338/2008",
+    "Prohibition On Secondary Use Of Health Data By Third Parties"
+  ],
+  "gdpr:recital55": [
+    "Personal Data Processing",
+    "Public Interest",
+    "Constitutional Law",
+    "International Public Law",
+    "Officially Recognised Religious Associations",
+    "Data Protection"
+  ],
+  "gdpr:recital56": [
+    "Electoral Activities",
+    "Processing Of Personal Data On Political Opinions",
+    "Public Interest Justification",
+    "Data Protection Safeguards",
+    "Democratic System Requirements"
+  ],
+  "gdpr:recital57": [
+    "Personal Data Identification",
+    "Data Controller Obligations Under Gdpr",
+    "Data Subject Rights",
+    "Digital Authentication Mechanisms",
+    "Processing Of Non-Identifiable Data"
+  ],
+  "gdpr:recital58": [
+    "Transparency Principle",
+    "Data Subject Right To Clear Information",
+    "Plain Language And Visualisation Requirements",
+    "Electronic Provision Of Information",
+    "Specific Protection For Children In Data Processing",
+    "Online Advertising And Personal Data Collection"
+  ],
+  "gdpr:recital59": [
+    "Data Subject Rights To Access, Rectification, Erasure, And Objection",
+    "Controller'S Obligation To Provide Free Mechanisms For Exercising Rights",
+    "Facilitation Of Electronic Request Submission",
+    "One\u2011Month Response Time Requirement For Data Subject Requests",
+    "Requirement To Provide Reasons When A Request Is Not Complied With"
+  ],
+  "gdpr:recital60": [
+    "Fair And Transparent Processing",
+    "Data Subject Right To Be Informed",
+    "Profiling And Its Consequences",
+    "Obligation To Provide Personal Data And Consequences Of Non\u2011Provision",
+    "Use Of Standardised Icons For Information",
+    "Requirement For Machine\u2011Readable Presentation"
+  ],
+  "gdpr:recital61": [
+    "Transparency And Information Obligations",
+    "Purpose Limitation And Further Processing",
+    "Disclosure To Third Parties",
+    "Source Of Personal Data And Origin Information",
+    "Reasonable Timeframes For Providing Information",
+    "Data Controller Duties"
+  ],
+  "gdpr:recital62": [
+    "Right Of Access To Personal Data",
+    "Exceptions To The Information Obligation",
+    "Processing For Archiving In The Public Interest",
+    "Scientific, Historical And Statistical Research Exemptions",
+    "Proportionality And Safeguards For Vulnerable Data Subjects"
+  ],
+  "gdpr:recital63": [
+    "Right Of Access To Personal Data",
+    "Obligation Of Controllers To Provide Information On Processing Purposes, Retention Periods, Recipients, And Profiling",
+    "Requirement For Secure Remote Access To Personal Data",
+    "Exemptions For Trade Secrets, Intellectual Property And Copyright",
+    "Requirement For Data Subjects To Specify Requested Information When Large Volumes Are Involved"
+  ],
+  "gdpr:recital64": [
+    "Data Subject Access Rights",
+    "Identity Verification",
+    "Purpose Limitation",
+    "Data Retention",
+    "Online Identifiers"
+  ],
+  "gdpr:recital65": [
+    "Right To Rectification",
+    "Right To Erasure (Right To Be Forgotten)",
+    "Consent And Withdrawal Of Consent",
+    "Exceptions To Erasure (Freedom Of Expression, Public Interest, Legal Obligations)",
+    "Data Protection Regulation (Gdpr)"
+  ],
+  "gdpr:recital66": [
+    "Right To Be Forgotten",
+    "Right To Erasure",
+    "Obligations Of Data Controllers To Inform Other Controllers",
+    "Technical Measures For Data Deletion",
+    "Compliance With Data Protection Regulations"
+  ],
+  "gdpr:recital67": [
+    "Restriction Of Processing",
+    "Personal Data Protection",
+    "Technical Measures For Data Restriction",
+    "Automated Filing Systems",
+    "Transparency Of Processing Restrictions"
+  ],
+  "gdpr:recital68": [
+    "Right To Data Portability",
+    "Legal Bases For Processing (Consent And Contract)",
+    "Exemptions For Public Authority Processing",
+    "Technical Interoperability And Format Requirements",
+    "Interaction With The Right To Erasure",
+    "Protection Of Other Data Subjects' Rights"
+  ],
+  "gdpr:recital69": [
+    "Lawful Basis For Processing Personal Data",
+    "Public Interest And Official Authority As A Processing Ground",
+    "Legitimate Interests Of The Controller Or Third Party",
+    "Data Subject'S Right To Object To Processing",
+    "Balancing Test Between Legitimate Interest And Data Subject'S Fundamental Rights",
+    "Controller'S Burden To Demonstrate Compelling Legitimate Interest"
+  ],
+  "gdpr:recital70": [
+    "Right To Object To Processing",
+    "Direct Marketing",
+    "Profiling",
+    "Data Subject Rights",
+    "Transparency And Notice Requirement"
+  ],
+  "gdpr:recital71": [
+    "Automated Decision\u2011Making",
+    "Profiling Of Personal Data",
+    "Data Subject Rights To Human Intervention, Explanation And Contestation",
+    "Legal Bases And Exemptions (Union/Member\u2011State Law, Consent, Contract)",
+    "Safeguards And Transparency Obligations",
+    "Special Categories Of Personal Data And Anti\u2011Discrimination Requirements"
+  ],
+  "gdpr:recital72": [
+    "Profiling",
+    "Processing Of Personal Data",
+    "Legal Grounds For Processing",
+    "Data Protection Principles",
+    "European Data Protection Board",
+    "Guidance Issuance"
+  ],
+  "gdpr:recital73": [
+    "Restrictions On Data Subject Rights Under Gdpr",
+    "Public Security And Criminal Investigation Exceptions",
+    "General Public Interest And Economic/Financial Interests",
+    "Processing Of Archived Data For Historical Or Political Purposes",
+    "Social Protection, Public Health, And Humanitarian Data Processing",
+    "Compliance With The Eu Charter Of Fundamental Rights And The European Convention On Human Rights"
+  ],
+  "gdpr:recital74": [
+    "Controller Liability",
+    "Accountability Principle",
+    "Appropriate Technical And Organisational Measures",
+    "Demonstration Of Compliance With The Regulation",
+    "Risk Assessment Concerning The Rights And Freedoms Of Data Subjects"
+  ],
+  "gdpr:recital75": [
+    "Risk To Rights And Freedoms Of Data Subjects",
+    "Special Categories Of Personal Data",
+    "Profiling And Automated Decision\u2011Making",
+    "Processing Of Children'S Personal Data",
+    "Large\u2011Scale Processing"
+  ],
+  "gdpr:recital76": [
+    "Risk Assessment In Data Processing",
+    "Rights And Freedoms Of Data Subjects",
+    "High\u2011Risk Processing",
+    "Objective Assessment Of Processing Risk",
+    "Nature, Scope, Context, And Purposes Of Processing"
+  ],
+  "gdpr:recital77": [
+    "Data Protection Risk Assessment",
+    "Approved Codes Of Conduct",
+    "Certification Mechanisms",
+    "Guidelines Issued By The Supervisory Board",
+    "Role Of The Data Protection Officer",
+    "Demonstration Of Compliance By Controller Or Processor"
+  ],
+  "gdpr:recital78": [
+    "Data Protection By Design",
+    "Data Protection By Default",
+    "Technical And Organisational Measures",
+    "Pseudonymisation Of Personal Data",
+    "Transparency And Data Subject Monitoring",
+    "Public Procurement And Data Protection"
+  ],
+  "gdpr:recital79": [
+    "Data Subject Rights And Freedoms",
+    "Controller And Processor Liability",
+    "Supervisory Authority Monitoring And Measures",
+    "Joint Controller Responsibility",
+    "Processing On Behalf Of A Controller (Processor Obligations)",
+    "Allocation Of Responsibilities Under The Regulation"
+  ],
+  "gdpr:recital80": [
+    "Designation Of A Representative For Non\u2011Eu Controllers Or Processors",
+    "Exemptions From The Representative Requirement (Occasional Processing, No Special Categories, Low Risk)",
+    "Liability And Responsibility Of The Controller Or Processor Despite Representation",
+    "Cooperation With Supervisory Authorities And Enforcement Proceedings",
+    "Processing Of Special Categories Of Personal Data And Data Concerning Criminal Convictions"
+  ],
+  "gdpr:recital81": [
+    "Processor Selection And Guarantees Under Gdpr",
+    "Data Protection Contracts Between Controller And Processor",
+    "Standard Contractual Clauses And Consistency Mechanism",
+    "Code Of Conduct And Certification As Compliance Evidence",
+    "Technical And Organisational Security Measures",
+    "Obligations For Return Or Deletion Of Personal Data After Processing"
+  ],
+  "gdpr:recital82": [
+    "Records Of Processing Activities",
+    "Controller And Processor Obligations",
+    "Cooperation With Supervisory Authority",
+    "Regulatory Compliance",
+    "Data Protection Monitoring"
+  ]
+}

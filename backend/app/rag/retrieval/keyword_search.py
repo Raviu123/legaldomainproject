@@ -9,7 +9,7 @@ import re
 from typing import Any, Dict, List
 
 from app.core.logging import logger
-from app.graph.client import neo4j_client
+from app.db.graph.client import neo4j_client
 
 
 def _extract_keywords(text: str) -> List[str]:

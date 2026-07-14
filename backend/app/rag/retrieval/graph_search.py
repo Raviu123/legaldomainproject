@@ -11,7 +11,7 @@ from typing import Any, Dict, List
 
 from app.core.constants import NodeLabel
 from app.core.logging import logger
-from app.graph.client import neo4j_client
+from app.db.graph.client import neo4j_client
 
 
 # Regex to parse article/recital/section numbers from a user query

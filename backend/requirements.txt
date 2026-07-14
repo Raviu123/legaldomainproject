@@ -55,3 +55,8 @@ pytest-mock
 black
 isort
 ruff
+
+# --- Relational database ---
+sqlmodel
+asyncpg
+greenlet

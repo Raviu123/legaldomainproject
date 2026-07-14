@@ -10,8 +10,8 @@ from typing import Any, Dict, List
 
 from app.core.config import settings
 from app.core.logging import logger
-from app.vector.client import qdrant_client_manager
-from app.vector.embeddings import embedding_model
+from app.db.vector.client import qdrant_client_manager
+from app.db.vector.embeddings import embedding_model
 
 
 # Regex to detect explicit article/recital references in a query

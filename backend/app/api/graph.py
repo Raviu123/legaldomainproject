@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from app.graph.client import neo4j_client
+from app.db.graph.client import neo4j_client
 
 router = APIRouter()
 

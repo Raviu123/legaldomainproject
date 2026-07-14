@@ -4,10 +4,10 @@ Exposes the three independently-callable retrieval legs and the merger
 as described in context.md §6 and agents.md §5.
 """
 
-from app.retrieval.graph_search import graph_search_by_query
-from app.retrieval.keyword_search import keyword_search
-from app.retrieval.merger import merge_and_rank
-from app.retrieval.vector_search import vector_search
+from app.rag.retrieval.graph_search import graph_search_by_query
+from app.rag.retrieval.keyword_search import keyword_search
+from app.rag.retrieval.merger import merge_and_rank
+from app.rag.retrieval.vector_search import vector_search
 
 __all__ = [
     "vector_search",

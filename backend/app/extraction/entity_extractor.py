@@ -7,14 +7,13 @@ with local file caching (optional, accurate).
 
 import json
 import re
-from pathlib import Path
 from typing import Dict, List
 
 from app.core.config import settings
 from app.core.logging import logger
 
-# Path for caching LLM concept extractions
-CACHE_FILE_PATH = Path(settings.DATA_DIR) / "concept_cache.json"
+# Path for caching LLM concept extractions (uses settings.cache_dir for consistent path resolution)
+CACHE_FILE_PATH = settings.cache_dir / "concept_cache.json"
 
 # Compile regex patterns for core legal concepts
 # Matches are case-insensitive and boundaries (\b) are checked to prevent substring mismatches
@@ -148,7 +147,7 @@ def extract_concepts_via_llm(text: str, unit_id: str) -> List[str]:
     Uses local cache to avoid redundant API calls.
     """
     global LLM_DISABLED
-    if LLM_DISABLED:
+    if LLM_DISABLED or not settings.ENABLE_LLM_CONCEPT_EXTRACTION:
         return []
 
     cache = load_concept_cache()

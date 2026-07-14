@@ -1,6 +1,13 @@
 # Agents.md — Instructions for AI Coding Agents
 
-This file is for any AI agent (Antigravity CLI, Claude Code, Cursor agent, etc.) working autonomously or semi-autonomously on this repository. Read `context.md` and `conventions.md` fully before writing any code. This file governs *how* you work, not *what* to build (that's `context.md`) or *how to format code* (that's `conventions.md`).
+This file is for any AI agent (Antigravity CLI, Claude Code, Cursor agent, etc.) working autonomously or semi-autonomously on this repository.
+
+> **Primary reference: Read `ARCHITECTURE.md` first and fully before touching any code.**
+> It is the canonical system guide and supersedes all other documentation for structural decisions.
+> Then read `context.md` (product goals) and `conventions.md` (code style) before writing code.
+> This file governs *how* you work — not *what* to build (`context.md`) or *how to format code* (`conventions.md`).
+
+
 
 ## 1. Order of operations
 

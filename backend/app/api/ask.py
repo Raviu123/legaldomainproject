@@ -18,11 +18,11 @@ from pydantic import BaseModel, Field
 
 from app.core.config import settings
 from app.core.logging import logger
-from app.llm.orchestrator import generate_answer
-from app.retrieval.graph_search import graph_search_by_query
-from app.retrieval.keyword_search import keyword_search
-from app.retrieval.merger import merge_and_rank
-from app.retrieval.vector_search import vector_search
+from app.rag.llm.orchestrator import generate_answer
+from app.rag.retrieval.graph_search import graph_search_by_query
+from app.rag.retrieval.keyword_search import keyword_search
+from app.rag.retrieval.merger import merge_and_rank
+from app.rag.retrieval.vector_search import vector_search
 
 router = APIRouter()
 
@@ -80,12 +80,38 @@ class AskResponse(BaseModel):
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _infer_collection(law: Optional[str]) -> str:
-    """Maps law name to Qdrant collection name. Defaults to 'gdpr'."""
-    mapping = {"GDPR": "gdpr", "DPDP": "dpdp", "AI_ACT": "ai_act", "AI ACT": "ai_act"}
-    if law:
-        return mapping.get(law.upper(), "gdpr")
-    return "gdpr"
+def _infer_collection(law: Optional[str]) -> tuple[str, str]:
+    """Maps a law name or identifier to (collection_name, law_identifier).
+
+    Derives from LAW_REGISTRY so adding a new law automatically works here.
+    Falls back to GDPR if no law is specified or the law is unrecognised.
+
+    Args:
+        law: Optional law name or identifier string (e.g. 'GDPR', 'dpdp').
+
+    Returns:
+        Tuple of (qdrant_collection_name, canonical_law_name).
+    """
+    from app.core.constants import LAW_REGISTRY, LawIdentifier
+
+    if not law:
+        # Cross-law search: default to GDPR collection for now
+        # TODO: implement multi-collection fan-out when >2 active laws exist
+        return "gdpr", "GDPR"
+
+    law_upper = law.upper().replace(" ", "_").replace("-", "_")
+
+    # Try matching by identifier value (e.g. 'gdpr', 'dpdp', 'ai_act')
+    for law_id, meta in LAW_REGISTRY.items():
+        if (
+            law_id.value.upper() == law_upper
+            or meta["name"].upper().replace(" ", "_") == law_upper
+        ):
+            return meta["collection_name"], meta["name"]
+
+    # Unknown law — default to GDPR
+    logger.warning(f"[Ask] Unknown law '{law}', falling back to GDPR collection.")
+    return "gdpr", "GDPR"
 
 
 def _build_fallback_answer(results: List[Dict[str, Any]]) -> str:
@@ -118,7 +144,7 @@ async def ask_question(request: AskRequest) -> AskResponse:
 
     question = request.question.strip()
     law_filter = request.law.upper() if request.law else None
-    collection = _infer_collection(law_filter)
+    collection, canonical_law = _infer_collection(law_filter)
 
     logger.info(f"[Ask] Question: {question!r} | Law filter: {law_filter} | Collection: {collection}")
 
@@ -142,7 +168,7 @@ async def ask_question(request: AskRequest) -> AskResponse:
     graph_results = await run_in_threadpool(
         graph_search_by_query,
         query=question,
-        law=law_filter or "GDPR",
+        law=canonical_law,
         collection_name=collection,
         vector_hit_ids=vector_hit_ids,
     )

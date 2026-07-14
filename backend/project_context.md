@@ -40,10 +40,22 @@ backend/
 │   │   ├── __init__.py
 │   │   ├── entity_extractor.py     # Extracts key concepts (hybrid regex + LLM)
 │   │   └── structure_extractor.py  # Extracts definitions and cross-references
-│   ├── graph/            # Neo4j Client and Database schema operations
+│   ├── db/               # Database Related Modules
 │   │   ├── __init__.py
-│   │   ├── client.py     # Singleton Neo4j client connection and query runner
-│   │   └── schema.py     # Node/Edge creation and graph integrity validation
+│   │   ├── graph/        # Neo4j Client and Database schema operations
+│   │   │   ├── __init__.py
+│   │   │   ├── client.py # Singleton Neo4j client connection and query runner
+│   │   │   └── schema.py # Node/Edge creation and graph integrity validation
+│   │   ├── relational/   # PostgreSQL Relational client and models
+│   │   │   ├── __init__.py
+│   │   │   ├── connection.py # Engine and Session pool management
+│   │   │   ├── crud.py   # Database helper CRUD queries
+│   │   │   └── models.py # SQLModel table declarations
+│   │   └── vector/       # Qdrant Client and vector embedding loader
+│   │       ├── __init__.py
+│   │       ├── client.py # Qdrant client connection manager
+│   │       ├── embeddings.py # Local embedding generator model
+│   │       └── schema.py # Vector loading and collection initialization
 │   ├── ingestion/        # Ingestion pipeline scripts
 │   │   ├── __init__.py
 │   │   ├── run.py        # Ingestion entrypoint CLI coordinating all stages
@@ -55,6 +67,18 @@ backend/
 │   └── models/           # Data validation models
 │       ├── __init__.py
 │       └── legal_unit.py # Pydantic definitions for LegalUnit and DefinitionModel
+│   └── rag/              # Retrieval Augmented Generation (RAG) Modules
+│       ├── __init__.py
+│       ├── llm/          # LLM Orchestrator
+│       │   ├── __init__.py
+│       │   ├── orchestrator.py # Loads prompts, calls LLM, validates output
+│       │   └── prompts/    # Versioned prompt template files
+│       └── retrieval/    # Hybrid Search Retrieval legs
+│           ├── __init__.py
+│           ├── graph_search.py # Graph traversal expansion on Neo4j
+│           ├── keyword_search.py # Keyword and exact-match Neo4j scan
+│           ├── merger.py # Dedup and rank results from vector/graph/keyword
+│           └── vector_search.py # Semantic vector search over Qdrant
 └── tests/                # Test suites grouped by backend layers
     ├── api/
     ├── extraction/
@@ -71,8 +95,11 @@ backend/
 - [app/core/logging.py](file:///C:/Users/Ravinarayana%20U/all_projects/legaldata_graphRag/backend/app/core/logging.py): Configures standard stdout logging under the logger name `legal_graph_rag`.
 
 ### Database Clients & Schema
-- [app/graph/client.py](file:///C:/Users/Ravinarayana%20U/all_projects/legaldata_graphRag/backend/app/graph/client.py): Controls the connection pool to the Neo4j database using a singleton instance (`neo4j_client`). Handles constraints setup (`CREATE CONSTRAINT ... IF NOT EXISTS`) for nodes: `Law`, `Chapter`, `Article`, `Recital`, `Definition`, `Concept`.
-- [app/graph/schema.py](file:///C:/Users/Ravinarayana%20U/all_projects/legaldata_graphRag/backend/app/graph/schema.py): Populates the graph. Loads nodes in Pass 1 (`load_legal_unit_to_graph`) and links relations (`REFERENCES`, `HAS_CONCEPT`) in Pass 2 (`load_references_and_concepts`). Includes integrity checkers to detect orphan and dangling stub nodes.
+- [app/db/graph/client.py](file:///C:/Users/Ravinarayana%20U/all_projects/legaldata_graphRag/backend/app/db/graph/client.py): Controls the connection pool to the Neo4j database using a singleton instance (`neo4j_client`). Handles constraints setup (`CREATE CONSTRAINT ... IF NOT EXISTS`) for nodes: `Law`, `Chapter`, `Article`, `Recital`, `Definition`, `Concept`.
+- [app/db/graph/schema.py](file:///C:/Users/Ravinarayana%20U/all_projects/legaldata_graphRag/backend/app/db/graph/schema.py): Populates the graph. Loads nodes in Pass 1 (`load_legal_unit_to_graph`) and links relations (`REFERENCES`, `HAS_CONCEPT`) in Pass 2 (`load_references_and_concepts`). Includes integrity checkers to detect orphan and dangling stub nodes.
+- [app/db/vector/client.py](file:///C:/Users/Ravinarayana%20U/all_projects/legaldata_graphRag/backend/app/db/vector/client.py): Manages Qdrant client connection pool and collection initialization.
+- [app/db/vector/embeddings.py](file:///C:/Users/Ravinarayana%20U/all_projects/legaldata_graphRag/backend/app/db/vector/embeddings.py): Generates embeddings locally using SentenceTransformers.
+- [app/db/vector/schema.py](file:///C:/Users/Ravinarayana%20U/all_projects/legaldata_graphRag/backend/app/db/vector/schema.py): Handles embedding documents and bulk loading them to Qdrant collection.
 
 ### Ingestion & Parsers
 - [app/ingestion/run.py](file:///C:/Users/Ravinarayana%20U/all_projects/legaldata_graphRag/backend/app/ingestion/run.py): CLI interface to run the GDPR ingestion. Orchestrates crawling, parsing, enriching (structure + concepts), saving to JSON, and loading to Neo4j.
