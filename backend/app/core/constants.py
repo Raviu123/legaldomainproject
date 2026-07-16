@@ -95,7 +95,9 @@ class LawIdentifier(str, Enum):
 
     # India
     DPDP = "dpdp"
+    DPDP_RULES = "dpdp_rules"
     IT_ACT = "it_act"
+    IT_INTERMEDIARY_RULES_2021 = "it_intermediary_rules_2021"
 
     # United Kingdom
     UK_GDPR = "uk_gdpr"
@@ -225,6 +227,48 @@ LAW_REGISTRY: Dict[LawIdentifier, Dict[str, Any]] = {
         "parser_module": "india_code_dpdp",
         "description": "An Act to provide for the processing of digital personal data in India.",
     },
+    LawIdentifier.DPDP_RULES: {
+        "identifier": LawIdentifier.DPDP_RULES,
+        "name": "DPDP Rules",
+        "full_name": "Digital Personal Data Protection Rules, 2025 (India)",
+        "jurisdiction": Jurisdiction.IN,
+        "categories": [LawCategory.DATA_PRIVACY],
+        "status": LawStatus.ACTIVE,
+        "source_url": "https://www.meity.gov.in/static/uploads/2025/11/53450e6e5dc0bfa85ebd78686cadad39.pdf",
+        "source_type": "pdf",
+        "collection_name": "dpdp_rules",
+        "id_prefix": "dpdp_rules",
+        "parser_module": "india_code_dpdp_rules",
+        "description": "Rules notified under the Digital Personal Data Protection Act, 2023, to provide guidelines for notices, consent, data breach reporting, and data protection board functions.",
+    },
+    LawIdentifier.IT_ACT: {
+        "identifier": LawIdentifier.IT_ACT,
+        "name": "IT Act",
+        "full_name": "Information Technology Act, 2000 (India)",
+        "jurisdiction": Jurisdiction.IN,
+        "categories": [LawCategory.CYBERSECURITY, LawCategory.DATA_PRIVACY],
+        "status": LawStatus.ACTIVE,
+        "source_url": "https://www.indiacode.nic.in/bitstream/123456789/1999/1/A2000-21%20%281%29.pdf",
+        "source_type": "pdf",
+        "collection_name": "it_act",
+        "id_prefix": "it_act",
+        "parser_module": "india_code_it_act",
+        "description": "An Act to provide legal recognition for transactions carried out by means of electronic data interchange and other means of electronic communication, commonly referred to as \"electronic commerce\".",
+    },
+    LawIdentifier.IT_INTERMEDIARY_RULES_2021: {
+        "identifier": LawIdentifier.IT_INTERMEDIARY_RULES_2021,
+        "name": "IT Intermediary Rules",
+        "full_name": "Information Technology (Intermediary Guidelines and Digital Media Ethics Code) Rules, 2021 (India)",
+        "jurisdiction": Jurisdiction.IN,
+        "categories": [LawCategory.CYBERSECURITY, LawCategory.DATA_PRIVACY],
+        "status": LawStatus.ACTIVE,
+        "source_url": "https://www.meity.gov.in/static/uploads/2026/03/0b576f2071694b52e4cd6bb1b6dfab1e.pdf",
+        "source_type": "pdf",
+        "collection_name": "it_rules_2021",
+        "id_prefix": "it_rules_2021",
+        "parser_module": "india_code_information_act",
+        "description": "Rules regulating intermediaries, social media platforms, and digital media ethics under the Information Technology Act, 2000.",
+    },
     LawIdentifier.AI_ACT: {
         "identifier": LawIdentifier.AI_ACT,
         "name": "AI Act",
@@ -280,5 +324,19 @@ LAW_REGISTRY: Dict[LawIdentifier, Dict[str, Any]] = {
         "id_prefix": "lgpd",
         "parser_module": "br_planalto_lgpd",
         "description": "Brazilian General Data Protection Law.",
+    },
+    LawIdentifier.PRIVACY_ACT_AU: {
+        "identifier": LawIdentifier.PRIVACY_ACT_AU,
+        "name": "Privacy Act",
+        "full_name": "Privacy Act 1988 (Australia)",
+        "jurisdiction": Jurisdiction.AU,
+        "categories": [LawCategory.DATA_PRIVACY],
+        "status": LawStatus.ACTIVE,
+        "source_url": "https://www.legislation.gov.au/C2004A03712/latest/text",
+        "source_type": "html",
+        "collection_name": "privacy_act_au",
+        "id_prefix": "aupa",
+        "parser_module": "au_legislation_privacy_act",
+        "description": "Australian federal law regulating the handling of personal information.",
     },
 }

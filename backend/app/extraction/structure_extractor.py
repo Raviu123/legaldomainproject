@@ -169,6 +169,204 @@ def extract_definitions_from_dpdp_sec2(text: str) -> List[DefinitionModel]:
     return definitions
 
 
+
+# ---------------------------------------------------------------------------
+# IT Act — Section 2 definition extractor
+# ---------------------------------------------------------------------------
+
+_IT_ACT_DEF_RE = re.compile(
+    rf"^\s*\(([a-z]{{1,2}})\)\s*"
+    rf"{_QUOTE_OPEN}({_TERM_BODY}){_QUOTE_CLOSE}"
+    rf"\s+(?:means|shall mean|includes|is)\s+(.+)$",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def extract_definitions_from_it_act_sec2(text: str) -> List[DefinitionModel]:
+    """Extracts defined terms from IT Act Section 2."""
+    definitions: List[DefinitionModel] = []
+    lines = text.split("\n")
+
+    current_term: str | None = None
+    current_def_lines: List[str] = []
+
+    def flush() -> None:
+        nonlocal current_term, current_def_lines
+        if current_term and current_def_lines:
+            defn_text = " ".join(current_def_lines).strip()
+            # Clean footnote indicators: e.g. 1[electronic signature] -> electronic signature
+            defn_text = re.sub(r"\d+\[([^\]]+)\]", r"\1", defn_text)
+            defn_text = defn_text.rstrip(";").strip()
+            if defn_text:
+                cleaned_term = re.sub(r"\d+\[([^\]]+)\]", r"\1", current_term)
+                cleaned_term = cleaned_term.replace("\uFFFD", "").replace('"', '').replace("'", "").strip()
+                definitions.append(DefinitionModel(term=cleaned_term, definition=defn_text))
+        current_term = None
+        current_def_lines = []
+
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            continue
+
+        if m := _IT_ACT_DEF_RE.match(stripped):
+            flush()
+            current_term = m.group(2).strip()
+            current_def_lines = [m.group(3).strip()]
+            continue
+
+        if current_term:
+            # New clause marker means we are done with the previous definition
+            if stripped.startswith("(") and ")" in stripped[:5] and "means" in stripped.lower():
+                flush()
+                continue
+            current_def_lines.append(stripped)
+
+    flush()
+    logger.debug(f"Extracted {len(definitions)} definitions from IT Act Section 2.")
+    return definitions
+
+
+# ---------------------------------------------------------------------------
+# DPDP Rules — Rule 2 definition extractor
+# ---------------------------------------------------------------------------
+
+_DPDP_RULES_DEF_RE = re.compile(
+    rf"^\s*\(([a-z]{{1,2}})\)\s*"
+    rf"{_QUOTE_OPEN}({_TERM_BODY}){_QUOTE_CLOSE}"
+    rf"\s+(?:means|shall mean|includes)\s+(.+)$",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def extract_definitions_from_dpdp_rules_rule2(text: str) -> List[DefinitionModel]:
+    """Extracts defined terms from DPDP Rules 2025 Rule 2."""
+    definitions: List[DefinitionModel] = []
+    lines = text.split("\n")
+
+    current_term: str | None = None
+    current_def_lines: List[str] = []
+
+    def flush() -> None:
+        nonlocal current_term, current_def_lines
+        if current_term and current_def_lines:
+            defn_text = " ".join(current_def_lines).strip()
+            defn_text = defn_text.rstrip(";").strip()
+            if defn_text:
+                cleaned_term = current_term.replace("\uFFFD", "").replace('“', '').replace('”', '').replace('"', '').replace("'", "").strip()
+                definitions.append(DefinitionModel(term=cleaned_term, definition=defn_text))
+        current_term = None
+        current_def_lines = []
+
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            continue
+
+        if m := _DPDP_RULES_DEF_RE.match(stripped):
+            flush()
+            current_term = m.group(2).strip()
+            current_def_lines = [m.group(3).strip()]
+            continue
+
+        if current_term:
+            # End of definition if a new sub-clause start is encountered
+            if stripped.startswith("(") and ")" in stripped[:5] and "means" in stripped.lower():
+                flush()
+                continue
+            current_def_lines.append(stripped)
+
+    flush()
+    logger.debug(f"Extracted {len(definitions)} definitions from DPDP Rules Rule 2.")
+    return definitions
+
+
+# ---------------------------------------------------------------------------
+# IT Intermediary Rules — Rule 2 definition extractor
+# ---------------------------------------------------------------------------
+
+_IT_RULES_DEF_RE = re.compile(
+    rf"^\s*\(([a-z]{{1,2}})\)\s*"
+    rf"{_QUOTE_OPEN}({_TERM_BODY}){_QUOTE_CLOSE}"
+    rf"\s+(?:means|shall mean|includes)\s+(.+)$",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def extract_definitions_from_it_rules_rule2(text: str) -> List[DefinitionModel]:
+    """Extracts defined terms from IT Intermediary Rules 2021 Rule 2."""
+    definitions: List[DefinitionModel] = []
+    lines = text.split("\n")
+
+    current_term: str | None = None
+    current_def_lines: List[str] = []
+
+    def flush() -> None:
+        nonlocal current_term, current_def_lines
+        if current_term and current_def_lines:
+            defn_text = " ".join(current_def_lines).strip()
+            defn_text = defn_text.rstrip(";").strip()
+            if defn_text:
+                cleaned_term = current_term.replace("\uFFFD", "").replace('“', '').replace('”', '').replace('"', '').replace("'", "").strip()
+                definitions.append(DefinitionModel(term=cleaned_term, definition=defn_text))
+        current_term = None
+        current_def_lines = []
+
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            continue
+
+        if m := _IT_RULES_DEF_RE.match(stripped):
+            flush()
+            current_term = m.group(2).strip()
+            current_def_lines = [m.group(3).strip()]
+            continue
+
+        if current_term:
+            # End of definition if a new sub-clause start is encountered
+            if stripped.startswith("(") and ")" in stripped[:5] and "means" in stripped.lower():
+                flush()
+                continue
+            current_def_lines.append(stripped)
+
+    flush()
+    logger.debug(f"Extracted {len(definitions)} definitions from IT Intermediary Rules Rule 2.")
+    return definitions
+
+
+# ---------------------------------------------------------------------------
+# Australia Privacy Act — Section 6 definition extractor
+# ---------------------------------------------------------------------------
+
+# Pattern: Matches "term means definition" or "“term” means definition", ignoring surrounding quotes/markdown formatting
+_AU_DEF_RE = re.compile(
+    rf"^\s*(?:{_QUOTE_OPEN})?({_TERM_BODY})(?:{_QUOTE_CLOSE})?\s+(?:means|includes|has the meaning)\s+(.+)$",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def extract_definitions_from_au_privacy_act_sec6(text: str) -> List[DefinitionModel]:
+    """Extracts defined terms from Australia Privacy Act Section 6 (Interpretation)."""
+    definitions: List[DefinitionModel] = []
+    for line in text.split("\n"):
+        line = line.strip()
+        if not line:
+            continue
+        if m := _AU_DEF_RE.match(line):
+            term = m.group(1).strip()
+            # Clean up formatting around the term (bold asterisks, underscores, quotes)
+            term = term.replace("*", "").replace("_", "").strip()
+            definition = m.group(2).strip()
+            # Verify term length is sensible (2 to 60 chars) to prevent false positives
+            if 2 <= len(term) <= 60:
+                definitions.append(DefinitionModel(term=term, definition=definition))
+
+    logger.debug(f"Extracted {len(definitions)} definitions from AU Privacy Act Section 6.")
+    return definitions
+
+
+
 # ---------------------------------------------------------------------------
 # Cross-reference extractor (shared across all laws)
 # ---------------------------------------------------------------------------
@@ -206,6 +404,10 @@ def extract_cross_references(text: str, law_prefix: str) -> List[str]:
 _DEFINITION_EXTRACTORS = {
     ("GDPR", "Article 4"):   extract_definitions_from_gdpr_art4,
     ("DPDP", "Section 2"):   extract_definitions_from_dpdp_sec2,
+    ("PRIVACY_ACT_AU", "Section 6"): extract_definitions_from_au_privacy_act_sec6,
+    ("IT_ACT", "Section 2"): extract_definitions_from_it_act_sec2,
+    ("DPDP_RULES", "Rule 2"): extract_definitions_from_dpdp_rules_rule2,
+    ("IT_INTERMEDIARY_RULES_2021", "Rule 2"): extract_definitions_from_it_rules_rule2,
 }
 
 
@@ -235,14 +437,16 @@ def enrich_legal_structure(units: List[LegalUnit]) -> List[LegalUnit]:
     enriched: List[LegalUnit] = []
     definition_totals: dict[str, int] = {}
 
+    valid_ids = {u.id for u in units}
+
     for unit in units:
         law_lower = unit.law.lower()
         law_prefix = law_prefix_overrides.get(law_lower, law_lower)
 
         # 1. Cross-references
         refs = extract_cross_references(unit.text, law_prefix)
-        # Remove self-references
-        unit.references = [r for r in refs if r != unit.id]
+        # Remove self-references and invalid dangling reference IDs
+        unit.references = [r for r in refs if r != unit.id and r in valid_ids]
 
         # 2. Definitions — dispatch by (law, article) key
         article_key = (unit.law.upper(), (unit.article or "").strip())

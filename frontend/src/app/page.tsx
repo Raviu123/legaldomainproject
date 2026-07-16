@@ -12,7 +12,7 @@ import { BookOpen, Network, ShieldCheck, ShieldAlert } from 'lucide-react';
 export default function Home() {
   // Navigation & configuration state
   const [activeTab, setActiveTab] = useState<'laws' | 'graph'>('laws');
-  const [selectedLawId, setSelectedLawId] = useState<string>('gdpr');
+  const [selectedLawId, setSelectedLawId] = useState<string>('');
   
   // Data state
   const [laws, setLaws] = useState<Law[]>([]);
@@ -194,6 +194,7 @@ export default function Home() {
             ) : activeTab === 'laws' ? (
               <LawViewer
                 articles={articles}
+                selectedLawId={selectedLawId}
                 selectedLawName={activeLaw?.name || ''}
                 activeArticleId={activeArticleId}
                 onSelectArticle={setActiveArticleId}

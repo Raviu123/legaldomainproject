@@ -46,7 +46,7 @@ from app.db.graph.schema import (
     load_references_and_concepts,
     verify_graph_integrity,
 )
-from app.ingestion.crawler.crawler import fetch_and_cache
+from app.ingestion.crawler import fetch_and_cache, RobustWebCrawler
 from app.ingestion.normalizer import normalize_and_save
 from app.ingestion.registry import get_parser
 from app.models.legal_unit import LegalUnit
@@ -60,6 +60,7 @@ def run_pipeline(
     skip_graph: bool = False,
     skip_vector: bool = False,
     skip_relational: bool = False,
+    use_crawl4ai: bool = False,
     force_recreate_vector: bool = False,
     dry_run: bool = False,
 ) -> None:
@@ -105,7 +106,17 @@ def run_pipeline(
         logger.info(f"[Stage 1] Using cached file: {raw_file_path}")
     else:
         try:
-            raw_file_path = fetch_and_cache(source_url, raw_filename, force_refetch=True)
+            if use_crawl4ai:
+                logger.info(f"[Stage 1] Instantiating crawl4ai RobustWebCrawler for {source_url}...")
+                crawler = RobustWebCrawler(
+                    base_url=source_url,
+                    max_depth=2,
+                    max_pages=100,
+                    politeness_delay=1.0,
+                )
+                raw_file_path = asyncio.run(crawler.crawl(raw_filename))
+            else:
+                raw_file_path = fetch_and_cache(source_url, raw_filename, force_refetch=True)
         except Exception as exc:
             logger.error(f"[Stage 1] Crawling failed: {exc}")
             sys.exit(1)
@@ -321,6 +332,11 @@ def main() -> None:
         help="Skip PostgreSQL relational database loading stage.",
     )
     parser.add_argument(
+        "--use-crawl4ai",
+        action="store_true",
+        help="Use Crawl4AI robust asynchronous web crawler.",
+    )
+    parser.add_argument(
         "--force-recreate-vector",
         action="store_true",
         help="Delete and recreate the Qdrant collection before loading.",
@@ -345,6 +361,7 @@ def main() -> None:
         skip_graph=args.skip_graph,
         skip_vector=args.skip_vector,
         skip_relational=args.skip_relational,
+        use_crawl4ai=args.use_crawl4ai,
         force_recreate_vector=args.force_recreate_vector,
         dry_run=args.dry_run,
     )

@@ -3,39 +3,31 @@ import { Law, LegalUnit, GraphData, AskResponse } from './types';
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
 
 export async function getLaws(): Promise<Law[]> {
-  const res = await fetch(`${BACKEND_URL}/api/v1/documents`);
+  const res = await fetch(`${BACKEND_URL}/api/v1/laws`);
   if (!res.ok) {
-    throw new Error(`Failed to fetch active laws from backend documents list: ${res.statusText}`);
+    throw new Error(`Failed to fetch laws from backend: ${res.statusText}`);
   }
-  const activeLaws: string[] = await res.json(); // Returns array of strings e.g. ["GDPR"]
-  const activeLawsLower = activeLaws.map((d: string) => d.toLowerCase());
+  const laws: any[] = await res.json();
 
-  return [
-    {
-      id: 'gdpr',
-      name: 'GDPR',
-      fullName: 'General Data Protection Regulation (EU)',
-      description: 'Regulation on the protection of natural persons with regard to the processing of personal data and on the free movement of such data.',
-      region: 'European Union',
-      status: activeLawsLower.includes('gdpr') ? 'active' : 'coming_soon',
-    },
-    {
-      id: 'dpdp',
-      name: 'DPDP Act',
-      fullName: 'Digital Personal Data Protection Act, 2023 (India)',
-      description: 'An Act to provide for the processing of digital personal data in a manner that recognizes both the right of individuals to protect their personal data and the need to process such personal data for lawful purposes.',
-      region: 'India',
-      status: activeLawsLower.includes('dpdp') ? 'active' : 'coming_soon',
-    },
-    {
-      id: 'ai_act',
-      name: 'AI Act',
-      fullName: 'Artificial Intelligence Act (EU)',
-      description: 'A harmonized regulatory and legal framework for artificial intelligence across the European Union.',
-      region: 'European Union',
-      status: activeLawsLower.includes('ai_act') ? 'active' : 'coming_soon',
-    },
-  ];
+  const regionMapping: Record<string, string> = {
+    EU: "European Union",
+    IN: "India",
+    AU: "Australia",
+    UK: "United Kingdom",
+    US: "United States",
+    BR: "Brazil",
+    SG: "Singapore",
+    JP: "Japan",
+  };
+
+  return laws.map((law: any) => ({
+    id: law.id,
+    name: law.name,
+    fullName: law.full_name,
+    description: law.description,
+    region: regionMapping[law.jurisdiction] || law.jurisdiction,
+    status: law.status === "active" ? "active" : "coming_soon",
+  }));
 }
 
 export async function getLawArticles(lawId: string): Promise<LegalUnit[]> {

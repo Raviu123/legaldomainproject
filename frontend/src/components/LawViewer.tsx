@@ -22,6 +22,7 @@ import {
 
 interface LawViewerProps {
   articles: LegalUnit[];
+  selectedLawId: string;
   selectedLawName: string;
   activeArticleId?: string;
   onSelectArticle?: (id: string) => void;
@@ -29,6 +30,7 @@ interface LawViewerProps {
 
 export default function LawViewer({
   articles,
+  selectedLawId,
   selectedLawName,
   activeArticleId,
   onSelectArticle,
@@ -140,14 +142,10 @@ export default function LawViewer({
     }
   };
 
-  // Map selectedLawName to backend parameter format
+  // Map selectedLawId to backend parameter format
   const backendLawFilter = useMemo(() => {
-    const name = selectedLawName.toUpperCase();
-    if (name.includes('GDPR')) return 'GDPR';
-    if (name.includes('DPDP')) return 'DPDP';
-    if (name.includes('AI')) return 'AI_ACT';
-    return undefined;
-  }, [selectedLawName]);
+    return selectedLawId ? selectedLawId.toUpperCase() : undefined;
+  }, [selectedLawId]);
 
   // Get Suggestions based on active law
   const getSuggestions = (lawName: string) => {
@@ -169,6 +167,12 @@ export default function LawViewer({
         'What are high-risk AI systems?',
         'What are prohibited AI practices?',
         'What is the penalty structure in the AI Act?',
+      ];
+    } else if (lower.includes('it act') || lower.includes('information technology')) {
+      return [
+        'What is the penalty for failure to protect sensitive data under Section 43A?',
+        'What are the powers of the government to block websites under Section 69A?',
+        'What protection does Section 79 offer to social media intermediaries?',
       ];
     }
     return [

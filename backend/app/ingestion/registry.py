@@ -16,6 +16,10 @@ from app.core.constants import LawIdentifier
 from app.ingestion.parsers.base import BaseLegalParser
 from app.ingestion.parsers.eur_lex_gdpr import EurLexGdprParser
 from app.ingestion.parsers.india_code_dpdp import IndiaCodeDpdpParser
+from app.ingestion.parsers.au_privacy_act import AustraliaPrivacyActParser
+from app.ingestion.parsers.india_code_it_act import IndiaCodeItActParser
+from app.ingestion.parsers.india_code_dpdp_rules import IndiaCodeDpdpRulesParser
+from app.ingestion.parsers.india_code_information_act import ItIntermediaryRules2021Parser
 
 
 # ---------------------------------------------------------------------------
@@ -25,6 +29,10 @@ from app.ingestion.parsers.india_code_dpdp import IndiaCodeDpdpParser
 PARSER_REGISTRY: Dict[LawIdentifier, Type[BaseLegalParser]] = {
     LawIdentifier.GDPR: EurLexGdprParser,
     LawIdentifier.DPDP: IndiaCodeDpdpParser,
+    LawIdentifier.PRIVACY_ACT_AU: AustraliaPrivacyActParser,
+    LawIdentifier.IT_ACT: IndiaCodeItActParser,
+    LawIdentifier.DPDP_RULES: IndiaCodeDpdpRulesParser,
+    LawIdentifier.IT_INTERMEDIARY_RULES_2021: ItIntermediaryRules2021Parser,
     # Uncomment as parsers are implemented:
     # LawIdentifier.AI_ACT:       EurLexAiActParser,
     # LawIdentifier.UK_GDPR:      UkLegislationUkGdprParser,

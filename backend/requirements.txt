@@ -60,3 +60,7 @@ ruff
 sqlmodel
 asyncpg
 greenlet
+
+# --- Robust Web Crawling ---
+crawl4ai
+playwright
