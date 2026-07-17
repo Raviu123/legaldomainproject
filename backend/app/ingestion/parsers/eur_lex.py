@@ -9,13 +9,13 @@ from typing import List
 
 from bs4 import BeautifulSoup, Tag
 
-from app.core.constants import LawName
+from app.core.constants import LawIdentifier
 from app.core.logging import logger
 from app.models.legal_unit import LegalUnit
 
 
 def parse_eur_lex_html(
-    file_path: Path, url: str, law_name: LawName = LawName.GDPR
+    file_path: Path, url: str, law_name: LawIdentifier = LawIdentifier.GDPR
 ) -> List[LegalUnit]:
     """Parses a EUR-Lex HTML file into a list of LegalUnit objects.
 

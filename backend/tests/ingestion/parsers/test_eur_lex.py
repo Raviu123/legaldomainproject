@@ -2,7 +2,7 @@
 """
 
 from pathlib import Path
-from app.core.constants import LawName
+from app.core.constants import LawIdentifier
 from app.ingestion.parsers.eur_lex import parse_eur_lex_html
 
 
@@ -40,7 +40,7 @@ def test_parse_eur_lex_html(tmp_path: Path) -> None:
     units = parse_eur_lex_html(
         file_path=file_path,
         url="https://eur-lex.europa.eu/mock-gdpr",
-        law_name=LawName.GDPR
+        law_name=LawIdentifier.GDPR
     )
     
     # Verify results

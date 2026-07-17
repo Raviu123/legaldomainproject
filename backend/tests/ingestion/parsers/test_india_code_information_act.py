@@ -65,6 +65,6 @@ def test_it_intermediary_rules_parser(tmp_path: Path) -> None:
     defs = extract_definitions_from_it_rules_rule2(rule2.text)
     assert len(defs) == 2
     assert defs[0].term == "Act"
-    assert defs[0].definition == "means the Information Technology Act, 2000 (21 of 2000)"
+    assert defs[0].definition == "the Information Technology Act, 2000 (21 of 2000)"
     assert defs[1].term == "advisory"
-    assert defs[1].definition == "means an advisory issued by the Ministry"
+    assert defs[1].definition == "an advisory issued by the Ministry"

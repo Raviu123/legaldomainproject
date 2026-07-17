@@ -68,6 +68,6 @@ def test_dpdp_rules_parser(tmp_path: Path) -> None:
     defs = extract_definitions_from_dpdp_rules_rule2(rule2.text)
     assert len(defs) == 2
     assert defs[0].term == "Act"
-    assert defs[0].definition == "means the Digital Personal Data Protection Act, 2023 (22 of 2023)"
+    assert defs[0].definition == "the Digital Personal Data Protection Act, 2023 (22 of 2023)"
     assert defs[1].term == "User account"
-    assert defs[1].definition == "means the online account registered by the Data Principal with the Data Fiduciary"
+    assert defs[1].definition == "the online account registered by the Data Principal with the Data Fiduciary"

@@ -80,8 +80,8 @@ class AskResponse(BaseModel):
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _infer_collection(law: Optional[str]) -> tuple[str, str]:
-    """Maps a law name or identifier to (collection_name, law_identifier).
+def _infer_collection(law: Optional[str]) -> tuple[str, str, str]:
+    """Maps a law name or identifier to (collection_name, law_identifier, db_law_string).
 
     Derives from LAW_REGISTRY so adding a new law automatically works here.
     Falls back to GDPR if no law is specified or the law is unrecognised.
@@ -90,14 +90,14 @@ def _infer_collection(law: Optional[str]) -> tuple[str, str]:
         law: Optional law name or identifier string (e.g. 'GDPR', 'dpdp').
 
     Returns:
-        Tuple of (qdrant_collection_name, canonical_law_name).
+        Tuple of (qdrant_collection_name, canonical_law_name, db_law_string).
     """
     from app.core.constants import LAW_REGISTRY, LawIdentifier
 
     if not law:
         # Cross-law search: default to GDPR collection for now
         # TODO: implement multi-collection fan-out when >2 active laws exist
-        return "gdpr", "GDPR"
+        return "gdpr", "GDPR", "GDPR"
 
     law_upper = law.upper().replace(" ", "_").replace("-", "_")
 
@@ -107,11 +107,11 @@ def _infer_collection(law: Optional[str]) -> tuple[str, str]:
             law_id.value.upper() == law_upper
             or meta["name"].upper().replace(" ", "_") == law_upper
         ):
-            return meta["collection_name"], meta["name"]
+            return meta["collection_name"], meta["name"], meta["identifier"].value.upper()
 
     # Unknown law — default to GDPR
     logger.warning(f"[Ask] Unknown law '{law}', falling back to GDPR collection.")
-    return "gdpr", "GDPR"
+    return "gdpr", "GDPR", "GDPR"
 
 
 def _build_fallback_answer(results: List[Dict[str, Any]]) -> str:
@@ -144,20 +144,105 @@ async def ask_question(request: AskRequest) -> AskResponse:
 
     question = request.question.strip()
     law_filter = request.law.upper() if request.law else None
-    collection, canonical_law = _infer_collection(law_filter)
 
-    logger.info(f"[Ask] Question: {question!r} | Law filter: {law_filter} | Collection: {collection}")
+    # Detect if the query asks about other laws to automatically enable cross-law search
+    from app.core.constants import LAW_REGISTRY, LawStatus
+    import asyncio
+
+    active_laws = [
+        meta for meta in LAW_REGISTRY.values()
+        if meta["status"] == LawStatus.ACTIVE
+    ]
+
+    question_upper = question.upper()
+    mentioned_laws = []
+    for meta in active_laws:
+        # Match e.g. "GDPR", "DPDP", "IT ACT", "PRIVACY ACT"
+        name_clean = meta["name"].upper().replace(" ACT", "")
+        id_clean = meta["identifier"].value.upper()
+        if name_clean in question_upper or id_clean in question_upper:
+            mentioned_laws.append(meta)
+
+    # Broaden filter to cross-law search if:
+    # 1. No filter is set.
+    # 2. More than one law is mentioned in the question (comparative).
+    # 3. A law is mentioned in the question that is different from the active filter.
+    is_cross_law = False
+    if not law_filter:
+        is_cross_law = True
+    elif len(mentioned_laws) > 1:
+        is_cross_law = True
+        logger.info(f"[Ask] Query mentions multiple laws {[m['name'] for m in mentioned_laws]}. Enabling cross-law search.")
+    elif len(mentioned_laws) == 1:
+        # Check if the single mentioned law differs from the active filter
+        single_law_name = mentioned_laws[0]["name"].upper()
+        single_law_id = mentioned_laws[0]["identifier"].value.upper()
+        if law_filter not in [single_law_name, single_law_id]:
+            is_cross_law = True
+            logger.info(f"[Ask] Query mentions a different law '{mentioned_laws[0]['name']}' than active filter '{law_filter}'. Enabling cross-law search.")
 
     # ------------------------------------------------------------------
     # Step 1: Vector search
     # ------------------------------------------------------------------
-    vector_results = await run_in_threadpool(
-        vector_search,
-        query=question,
-        collection_name=collection,
-        top_k=request.top_k,
-        law_filter=law_filter,
-    )
+    if is_cross_law:
+        # Check which Qdrant collections exist to avoid 404 search failures
+        existing_collections = set()
+        try:
+            from app.db.vector.client import qdrant_client_manager
+            client = qdrant_client_manager.client
+            cols = client.get_collections().collections
+            existing_collections = {c.name for c in cols}
+        except Exception as e:
+            logger.warning(f"[Ask] Failed to list Qdrant collections: {e}")
+
+        # Determine which laws to query. If specific laws were mentioned, query only those.
+        # Otherwise, query all active laws.
+        laws_to_query = mentioned_laws if mentioned_laws else active_laws
+
+        # Filter by existing collections in Qdrant to avoid 404 errors
+        if existing_collections:
+            filtered_laws = [
+                meta for meta in laws_to_query
+                if meta["collection_name"] in existing_collections
+            ]
+            if filtered_laws:
+                laws_to_query = filtered_laws
+
+        logger.info(f"[Ask] Running cross-law query. Querying laws: {[m['name'] for m in laws_to_query]}")
+        tasks = [
+            run_in_threadpool(
+                vector_search,
+                query=question,
+                collection_name=meta["collection_name"],
+                top_k=request.top_k,
+                law_filter=None,
+            )
+            for meta in laws_to_query
+        ]
+        vector_results_nested = await asyncio.gather(*tasks)
+
+        vector_results = []
+        for res_list in vector_results_nested:
+            vector_results.extend(res_list)
+
+        vector_results.sort(key=lambda x: x.get("score", 0.0), reverse=True)
+        canonical_laws = [meta["identifier"].value.upper() for meta in laws_to_query]
+        collection_log_name = "multiple"
+        kw_law_filter = [meta["identifier"].value.upper() for meta in laws_to_query]
+    else:
+        collection, canonical_law, db_law = _infer_collection(law_filter)
+        logger.info(f"[Ask] Question: {question!r} | Law filter: {law_filter} | Collection: {collection} | DB Law: {db_law}")
+
+        vector_results = await run_in_threadpool(
+            vector_search,
+            query=question,
+            collection_name=collection,
+            top_k=request.top_k,
+            law_filter=db_law,
+        )
+        canonical_laws = db_law
+        collection_log_name = collection
+        kw_law_filter = db_law
 
     # Extract node IDs from vector hits to seed graph traversal
     vector_hit_ids = [r["id"] for r in vector_results if r.get("id")]
@@ -168,8 +253,8 @@ async def ask_question(request: AskRequest) -> AskResponse:
     graph_results = await run_in_threadpool(
         graph_search_by_query,
         query=question,
-        law=canonical_law,
-        collection_name=collection,
+        law=canonical_laws,
+        collection_name=collection_log_name,
         vector_hit_ids=vector_hit_ids,
     )
 
@@ -179,7 +264,7 @@ async def ask_question(request: AskRequest) -> AskResponse:
     kw_results = await run_in_threadpool(
         keyword_search,
         query=question,
-        law_filter=law_filter,
+        law_filter=kw_law_filter,
         limit=6,
     )
 

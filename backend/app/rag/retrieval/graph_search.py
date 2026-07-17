@@ -23,18 +23,31 @@ _RECITAL_NUMBER_PATTERN = re.compile(
     r"\b(?:recital)\s*(\d+)\b",
     re.IGNORECASE,
 )
+_SECTION_NUMBER_PATTERN = re.compile(
+    r"\b(?:section|sec\.?)\s*(\d+[a-z]?)\b",
+    re.IGNORECASE,
+)
 
 
 def _build_law_prefix(law: str) -> str:
     """Derives the Neo4j id prefix for a given law name (e.g. 'GDPR' -> 'gdpr')."""
+    from app.core.constants import LAW_REGISTRY
+    
+    law_upper = law.upper().replace(" ", "_").replace("-", "_")
+    for law_id, meta in LAW_REGISTRY.items():
+        if (
+            law_id.value.upper() == law_upper
+            or meta["name"].upper().replace(" ", "_") == law_upper
+            or meta["full_name"].upper().replace(" ", "_") == law_upper
+        ):
+            return meta["id_prefix"]
+            
+    # Fallback to lowercased default
     return law.lower().replace(" ", "_").replace("-", "_")
 
 
 def _extract_anchor_ids_from_query(query: str, law: str) -> List[str]:
-    """Extracts explicit article/recital references from the query and maps to Neo4j IDs.
-
-    E.g. 'Article 6 of GDPR' → 'gdpr:art6'.
-    """
+    """Extracts explicit article/recital/section references from the query and maps to Neo4j IDs."""
     prefix = _build_law_prefix(law)
     anchor_ids = []
 
@@ -45,6 +58,11 @@ def _extract_anchor_ids_from_query(query: str, law: str) -> List[str]:
     for match in _RECITAL_NUMBER_PATTERN.finditer(query):
         num = match.group(1)
         anchor_ids.append(f"{prefix}:recital{num}")
+
+    for match in _SECTION_NUMBER_PATTERN.finditer(query):
+        num = match.group(1).lower()
+        anchor_ids.append(f"{prefix}:sec{num}")
+        anchor_ids.append(f"{prefix}:sec_{num}")
 
     return anchor_ids
 
@@ -161,7 +179,7 @@ def graph_search_from_anchors(
 
 def graph_search_by_query(
     query: str,
-    law: str = "GDPR",
+    law: str | List[str] = "GDPR",
     collection_name: str = "gdpr",
     vector_hit_ids: List[str] | None = None,
 ) -> List[Dict[str, Any]]:
@@ -169,7 +187,7 @@ def graph_search_by_query(
 
     Args:
         query: The user's natural language question.
-        law: The law name to scope anchor ID inference (e.g. 'GDPR').
+        law: The law name or list of law names to scope anchor ID inference (e.g. 'GDPR' or ['GDPR', 'DPDP Act']).
         collection_name: Collection name hint for logging.
         vector_hit_ids: Node IDs from the vector search leg to use as additional anchors.
 
@@ -177,7 +195,10 @@ def graph_search_by_query(
         Deduplicated list of graph-retrieved result dicts.
     """
     # 1. Detect explicit article references from the query text
-    query_anchors = _extract_anchor_ids_from_query(query, law)
+    laws = [law] if isinstance(law, str) else law
+    query_anchors = []
+    for l in laws:
+        query_anchors.extend(_extract_anchor_ids_from_query(query, l))
 
     # 2. Merge with vector-seeded anchor IDs (dedup)
     all_anchors = list(dict.fromkeys(query_anchors + (vector_hit_ids or [])))

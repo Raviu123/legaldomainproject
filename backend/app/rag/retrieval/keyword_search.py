@@ -52,7 +52,13 @@ def keyword_search(
 
     logger.info(f"[KeywordSearch] Searching with keywords: {keywords}")
 
-    law_clause = "AND n.law = $law_filter" if law_filter else ""
+    if law_filter:
+        if isinstance(law_filter, list):
+            law_clause = "AND n.law IN $law_filter"
+        else:
+            law_clause = "AND n.law = $law_filter"
+    else:
+        law_clause = ""
 
     # Score nodes by how many keywords appear in text/title
     cypher = f"""

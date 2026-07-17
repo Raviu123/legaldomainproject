@@ -1,13 +1,19 @@
 """Unit tests for the backend API endpoints.
 """
 
+import pytest
 from fastapi.testclient import TestClient
 from app.main import app
 
-client = TestClient(app)
+
+@pytest.fixture(scope="module")
+def client():
+    """Module-scoped client fixture that triggers FastAPI startup/shutdown lifespan events."""
+    with TestClient(app) as c:
+        yield c
 
 
-def test_health_check() -> None:
+def test_health_check(client) -> None:
     """Tests the health check endpoint."""
     response = client.get("/api/v1/health")
     assert response.status_code == 200
@@ -18,7 +24,7 @@ def test_health_check() -> None:
     assert response_slash.status_code == 200
 
 
-def test_list_ingested_laws() -> None:
+def test_list_ingested_laws(client) -> None:
     """Tests the list_ingested_laws endpoint."""
     response = client.get("/api/v1/documents")
     assert response.status_code == 200
@@ -27,7 +33,7 @@ def test_list_ingested_laws() -> None:
     assert "GDPR" in laws
 
 
-def test_get_law_documents_gdpr() -> None:
+def test_get_law_documents_gdpr(client) -> None:
     """Tests the get_law_documents endpoint for GDPR."""
     response = client.get("/api/v1/documents/GDPR")
     assert response.status_code == 200
@@ -40,7 +46,7 @@ def test_get_law_documents_gdpr() -> None:
     assert first_doc["law"] == "GDPR"
 
 
-def test_graph_data_endpoint() -> None:
+def test_graph_data_endpoint(client) -> None:
     """Tests the graph data endpoint."""
     response = client.get("/api/v1/graph")
     assert response.status_code == 200
@@ -51,7 +57,7 @@ def test_graph_data_endpoint() -> None:
     assert isinstance(data["edges"], list)
 
 
-def test_ask_question_endpoint() -> None:
+def test_ask_question_endpoint(client) -> None:
     """Tests the ask question endpoint."""
     # Test valid request
     response = client.post("/api/v1/ask", json={"question": "What is personal data?"})
@@ -63,6 +69,10 @@ def test_ask_question_endpoint() -> None:
     assert "related_laws" in data
     assert isinstance(data["sources"], list)
     
-    # Test empty question validation
-    response_empty = client.post("/api/v1/ask", json={"question": ""})
-    assert response_empty.status_code == 400
+    # Test empty question validation (whitespace string passes length constraint but fails strip check)
+    response_whitespace = client.post("/api/v1/ask", json={"question": "     "})
+    assert response_whitespace.status_code == 400
+
+    # Test short question validation (Pydantic min_length=5 validation failure)
+    response_short = client.post("/api/v1/ask", json={"question": ""})
+    assert response_short.status_code == 422

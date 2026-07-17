@@ -64,8 +64,8 @@ _CHAPTER_RE = re.compile(
 # Chapter title on its own next line (ALL CAPS, no number prefix)
 _CHAPTER_TITLE_RE = re.compile(r"^\s*([A-Z][A-Z\s,]+[A-Z])\s*$")
 
-# Section start: "1.", "2.", "22A." etc.
-_SECTION_RE = re.compile(r"^\s*(\d+[A-Z]?)\.\s+(.*)")
+# Section start: "1.", "2.", "22A." etc. (with optional alphabetic prefix/marginal notes)
+_SECTION_RE = re.compile(r"^\s*(?:([A-Za-z\s,()–\-]{1,40}?)\s+)?(\d+[A-Z]?)\.\s+(.*)")
 
 # Sub-section: "(1)" "(2)"
 _SUBSECTION_RE = re.compile(r"^\s*\((\d+)\)\s+(.*)")
@@ -284,13 +284,14 @@ class IndiaCodeDpdpParser(BaseLegalParser):
             if m := _SECTION_RE.match(line):
                 flush_section()
                 in_preamble = False
-                current_section_num = m.group(1)
-                rest = m.group(2).strip()
-                # The section title is the first line after the number
-                # It often ends with ".—" or just "."
-                current_section_title = rest.rstrip(".—").strip()
-                # If there's no content after the number on this line, title will
-                # be set from the very next line below.
+                prefix = m.group(1).strip() if m.group(1) else ""
+                current_section_num = m.group(2)
+                rest = m.group(3).strip()
+                title_body = rest.rstrip(".—").strip()
+                if prefix:
+                    current_section_title = f"{prefix} {title_body}".strip()
+                else:
+                    current_section_title = title_body
                 if not current_section_title:
                     current_section_title = ""
                 continue
