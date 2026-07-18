@@ -26,6 +26,7 @@ interface LawViewerProps {
   selectedLawName: string;
   activeArticleId?: string;
   onSelectArticle?: (id: string) => void;
+  lawNotIngested?: boolean;
 }
 
 export default function LawViewer({
@@ -34,6 +35,7 @@ export default function LawViewer({
   selectedLawName,
   activeArticleId,
   onSelectArticle,
+  lawNotIngested = false,
 }: LawViewerProps) {
   const [internalSelectedArticleId, setInternalSelectedArticleId] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -218,6 +220,19 @@ export default function LawViewer({
     if (score >= 0.5) return 'bg-amber-500';
     return 'bg-rose-500';
   };
+
+  if (lawNotIngested) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center p-8 text-center text-zinc-500 bg-zinc-50 dark:bg-zinc-950/20">
+        <AlertCircle className="h-12 w-12 text-zinc-450 dark:text-zinc-500 mb-4" />
+        <h3 className="text-base font-bold text-zinc-900 dark:text-white">Law Not Ingested</h3>
+        <p className="mt-2 max-w-sm text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+          The legal corpus for <b>{selectedLawName}</b> has not been ingested yet.
+          Please run the ingestion pipeline first to make it active and searchable.
+        </p>
+      </div>
+    );
+  }
 
   if (articles.length === 0) {
     return (

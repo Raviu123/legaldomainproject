@@ -33,7 +33,9 @@ export async function getLaws(): Promise<Law[]> {
 export async function getLawArticles(lawId: string): Promise<LegalUnit[]> {
   const res = await fetch(`${BACKEND_URL}/api/v1/documents/${lawId}`);
   if (!res.ok) {
-    throw new Error(`Failed to fetch law ${lawId} articles from backend documents API: ${res.statusText}`);
+    const error = new Error(`Failed to fetch law ${lawId} articles from backend documents API: ${res.statusText}`);
+    (error as any).status = res.status;
+    throw error;
   }
   return await res.json();
 }

@@ -24,6 +24,7 @@ export default function Home() {
   // Loading & error state
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [lawNotIngested, setLawNotIngested] = useState<boolean>(false);
 
   // Backend connection status state
   const [backendConnected, setBackendConnected] = useState<boolean>(false);
@@ -88,6 +89,7 @@ export default function Home() {
       
       try {
         setError(null);
+        setLawNotIngested(false);
         setLoading(true);
         
         // Fetch articles
@@ -102,11 +104,21 @@ export default function Home() {
         }
 
         // Fetch graph structural data
-        const gData = await getGraphData();
-        setGraphData(gData);
+        try {
+          const gData = await getGraphData();
+          setGraphData(gData);
+        } catch (graphErr) {
+          console.warn("Failed to load graph data, setting empty graph:", graphErr);
+          setGraphData({ nodes: [], edges: [] });
+        }
       } catch (err: any) {
         console.error('Error loading law content from backend:', err);
-        setError(`Failed to load law content: ${err.message || 'Unknown error'}`);
+        if (err.status === 404) {
+          setArticles([]);
+          setLawNotIngested(true);
+        } else {
+          setError(`Failed to load law content: ${err.message || 'Unknown error'}`);
+        }
       } finally {
         setLoading(false);
       }
@@ -198,6 +210,7 @@ export default function Home() {
                 selectedLawName={activeLaw?.name || ''}
                 activeArticleId={activeArticleId}
                 onSelectArticle={setActiveArticleId}
+                lawNotIngested={lawNotIngested}
               />
             ) : (
               <GraphExplorer graphData={graphData} />
