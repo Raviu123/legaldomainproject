@@ -130,6 +130,34 @@ class Settings(BaseModel):
     )
 
     # ------------------------------------------------------------------
+    # Graph & RAG Limits (Magic Numbers)
+    # ------------------------------------------------------------------
+    GRAPH_NODE_LIMIT: int = Field(
+        default=1000,
+        description="Max nodes fetched for visualization.",
+    )
+    GRAPH_EDGE_LIMIT: int = Field(
+        default=1500,
+        description="Max edges fetched for visualization.",
+    )
+    ASK_DEFAULT_TOP_K: int = Field(
+        default=8,
+        description="Default top_k for RAG search legs.",
+    )
+    ASK_MERGE_TOP_K: int = Field(
+        default=12,
+        description="Top_k after merging RAG search legs.",
+    )
+    ASK_KEYWORD_LIMIT: int = Field(
+        default=6,
+        description="Limit for keyword search leg.",
+    )
+    ASK_FALLBACK_CONFIDENCE: float = Field(
+        default=0.4,
+        description="Fallback confidence score when LLM is offline.",
+    )
+
+    # ------------------------------------------------------------------
     # Computed path helpers
     # ------------------------------------------------------------------
 
@@ -191,4 +219,10 @@ settings = Settings(
     INGESTION_RATE_LIMIT_SLEEP=float(os.environ.get("INGESTION_RATE_LIMIT_SLEEP", "1.0")),
     ENABLE_LLM_CONCEPT_EXTRACTION=os.environ.get("ENABLE_LLM_CONCEPT_EXTRACTION", "true").lower() == "true",
     ENABLE_APOC=os.environ.get("ENABLE_APOC", "true").lower() == "true",
+    GRAPH_NODE_LIMIT=int(os.environ.get("GRAPH_NODE_LIMIT", "1000")),
+    GRAPH_EDGE_LIMIT=int(os.environ.get("GRAPH_EDGE_LIMIT", "1500")),
+    ASK_DEFAULT_TOP_K=int(os.environ.get("ASK_DEFAULT_TOP_K", "8")),
+    ASK_MERGE_TOP_K=int(os.environ.get("ASK_MERGE_TOP_K", "12")),
+    ASK_KEYWORD_LIMIT=int(os.environ.get("ASK_KEYWORD_LIMIT", "6")),
+    ASK_FALLBACK_CONFIDENCE=float(os.environ.get("ASK_FALLBACK_CONFIDENCE", "0.4")),
 )

@@ -1,14 +1,6 @@
 """Admin API endpoints.
 
-Provides privileged operations that should be protected in production:
-  POST /api/v1/admin/ingest   — Trigger ingestion pipeline for a law.
-  POST /api/v1/admin/refresh  — Force re-check for law updates.
-  GET  /api/v1/admin/status   — Returns pipeline and database health summary.
-
-Security note:
-  In production, protect these endpoints with an API key header:
-    X-Admin-Key: <ADMIN_API_KEY env var>
-  The _require_admin_key dependency handles this.
+Provides privileged operations that should be protected in production.
 """
 
 from typing import Any, Dict, List, Optional
@@ -17,10 +9,11 @@ from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, 
 from pydantic import BaseModel, Field
 
 from app.core.config import settings
-from app.core.constants import LAW_REGISTRY, LawIdentifier, LawStatus
-from app.core.logging import logger
+from app.core.constants import LawIdentifier
+from app.services.admin_service import AdminService, RegistryEntry, IngestResponse
 
 router = APIRouter()
+admin_service = AdminService()
 
 
 # ---------------------------------------------------------------------------
@@ -29,17 +22,7 @@ router = APIRouter()
 
 
 def _require_admin_key(x_admin_key: Optional[str] = Header(default=None)) -> None:
-    """Validates the X-Admin-Key header.
-
-    In development (ENVIRONMENT != 'production') the check is bypassed so you
-    can call admin endpoints without a key during local development.
-
-    Args:
-        x_admin_key: Value of the X-Admin-Key HTTP header.
-
-    Raises:
-        HTTPException 401: If key is missing or wrong in production.
-    """
+    """Validates the X-Admin-Key header."""
     if settings.ENVIRONMENT == "production":
         admin_key = getattr(settings, "ADMIN_API_KEY", None)
         if not admin_key or x_admin_key != admin_key:
@@ -50,7 +33,7 @@ def _require_admin_key(x_admin_key: Optional[str] = Header(default=None)) -> Non
 
 
 # ---------------------------------------------------------------------------
-# Request / Response models
+# Request / Response models (specific to API schema parameters validation)
 # ---------------------------------------------------------------------------
 
 
@@ -84,25 +67,6 @@ class IngestRequest(BaseModel):
     )
 
 
-class IngestResponse(BaseModel):
-    """Response for an ingest trigger."""
-
-    status: str
-    law: str
-    message: str
-
-
-class RegistryEntry(BaseModel):
-    """Summary of a law in the registry."""
-
-    identifier: str
-    name: str
-    full_name: str
-    jurisdiction: str
-    status: str
-    source_url: str
-
-
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
@@ -113,17 +77,7 @@ async def list_law_registry(
     _: None = Depends(_require_admin_key),
 ) -> List[RegistryEntry]:
     """Returns all laws in the registry with their ingestion status."""
-    return [
-        RegistryEntry(
-            identifier=meta["identifier"].value,
-            name=meta["name"],
-            full_name=meta["full_name"],
-            jurisdiction=meta["jurisdiction"].value,
-            status=meta["status"].value,
-            source_url=meta.get("source_url", ""),
-        )
-        for meta in LAW_REGISTRY.values()
-    ]
+    return admin_service.list_law_registry()
 
 
 @router.post("/ingest", response_model=IngestResponse, status_code=status.HTTP_202_ACCEPTED)
@@ -132,48 +86,15 @@ async def trigger_ingestion(
     background_tasks: BackgroundTasks,
     _: None = Depends(_require_admin_key),
 ) -> IngestResponse:
-    """Triggers the ingestion pipeline for a law as a background task.
-
-    Returns 202 Accepted immediately; the pipeline runs in the background.
-    Monitor progress via application logs.
-    """
-    try:
-        law_id = LawIdentifier(request.law)
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Unknown law identifier '{request.law}'. "
-            f"Valid choices: {[l.value for l in LawIdentifier]}",
-        )
-
-    law_meta = LAW_REGISTRY.get(law_id)
-    if law_meta is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Law '{request.law}' is not in the registry.",
-        )
-
-    logger.info(f"[AdminAPI] Ingestion triggered for '{law_id.value}' via API.")
-
-    from app.ingestion.run import run_pipeline
-
-    background_tasks.add_task(
-        run_pipeline,
-        law_id,
+    """Triggers the ingestion pipeline for a law as a background task."""
+    return admin_service.trigger_ingestion(
+        law_name=request.law,
         skip_fetch=request.skip_fetch,
         skip_graph=request.skip_graph,
         skip_vector=request.skip_vector,
         force_recreate_vector=request.force_recreate_vector,
         dry_run=request.dry_run,
-    )
-
-    return IngestResponse(
-        status="accepted",
-        law=law_id.value,
-        message=(
-            f"Ingestion pipeline for '{law_meta['name']}' has been queued. "
-            "Monitor progress in application logs."
-        ),
+        background_tasks=background_tasks,
     )
 
 
@@ -184,13 +105,7 @@ async def trigger_update_check(
     _: None = Depends(_require_admin_key),
 ) -> Dict[str, Any]:
     """Triggers a background check for source document updates across all ACTIVE laws."""
-    from app.jobs.check_updates import check_all_law_updates
-
-    logger.info(f"[AdminAPI] Law update check triggered via API (auto_reingest={auto_reingest}).")
-    background_tasks.add_task(check_all_law_updates, auto_reingest)
-
-    return {
-        "status": "accepted",
-        "message": "Update check queued. Results will be logged.",
-        "auto_reingest": auto_reingest,
-    }
+    return admin_service.trigger_update_check(
+        auto_reingest=auto_reingest,
+        background_tasks=background_tasks,
+    )
