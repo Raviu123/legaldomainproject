@@ -5,13 +5,14 @@ import Header from '../components/Header';
 import Sidebar from '../components/Sidebar';
 import LawViewer from '../components/LawViewer';
 import GraphExplorer from '../components/GraphExplorer';
+import AddLawTab from '../components/AddLawTab';
 import { Law, LegalUnit, GraphData } from '../lib/types';
 import { getLaws, getLawArticles, getGraphData } from '../lib/api';
-import { BookOpen, Network, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { BookOpen, Network, PlusCircle, ShieldCheck, ShieldAlert } from 'lucide-react';
 
 export default function Home() {
   // Navigation & configuration state
-  const [activeTab, setActiveTab] = useState<'laws' | 'graph'>('laws');
+  const [activeTab, setActiveTab] = useState<'laws' | 'graph' | 'add_law'>('laws');
   const [selectedLawId, setSelectedLawId] = useState<string>('');
   
   // Data state
@@ -140,7 +141,10 @@ export default function Home() {
         <Sidebar
           laws={laws}
           selectedLawId={selectedLawId}
-          onSelectLaw={setSelectedLawId}
+          onSelectLaw={(lawId) => {
+            setSelectedLawId(lawId);
+            if (activeTab === 'add_law') setActiveTab('laws');
+          }}
           stats={stats}
         />
 
@@ -172,6 +176,17 @@ export default function Home() {
                 <Network className="h-4 w-4" />
                 <span>Knowledge Graph Explorer</span>
               </button>
+              <button
+                onClick={() => setActiveTab('add_law')}
+                className={`flex h-12 items-center gap-2 border-b-2 px-1 text-xs font-bold transition-all ${
+                  activeTab === 'add_law'
+                    ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400'
+                    : 'border-transparent text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300'
+                }`}
+              >
+                <PlusCircle className="h-4 w-4" />
+                <span>Add & Ingest Law</span>
+              </button>
             </div>
 
             {/* Context breadcrumb */}
@@ -180,14 +195,14 @@ export default function Home() {
                 <ShieldCheck className="h-4 w-4 text-indigo-500" />
                 <span className="font-semibold text-zinc-700 dark:text-zinc-300">{activeLaw.name}</span>
                 <span>/</span>
-                <span className="capitalize">{activeTab} View</span>
+                <span className="capitalize">{activeTab === 'add_law' ? 'Ingestion Pipeline' : `${activeTab} View`}</span>
               </div>
             )}
           </div>
 
           {/* Active Tab Panel */}
           <div className="flex-1 overflow-hidden">
-            {error ? (
+            {error && activeTab !== 'add_law' ? (
               <div className="flex h-full flex-col items-center justify-center p-8 text-center bg-zinc-50 dark:bg-zinc-950">
                 <div className="rounded-full bg-rose-50 p-4 dark:bg-rose-950/20 text-rose-500">
                   <ShieldAlert className="h-10 w-10" />
@@ -212,8 +227,17 @@ export default function Home() {
                 onSelectArticle={setActiveArticleId}
                 lawNotIngested={lawNotIngested}
               />
-            ) : (
+            ) : activeTab === 'graph' ? (
               <GraphExplorer graphData={graphData} />
+            ) : (
+              <AddLawTab
+                onIngestionSuccess={async () => {
+                  try {
+                    const updatedLaws = await getLaws();
+                    setLaws(updatedLaws);
+                  } catch (_) {}
+                }}
+              />
             )}
           </div>
         </main>
@@ -221,3 +245,4 @@ export default function Home() {
     </div>
   );
 }
+

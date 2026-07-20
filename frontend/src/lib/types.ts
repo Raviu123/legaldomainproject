@@ -62,3 +62,28 @@ export interface AskResponse {
   confidence: number;
   related_laws: string[];
 }
+
+export interface RegistryEntry {
+  identifier: string;
+  name: string;
+  full_name: string;
+  jurisdiction: string;
+  status: string;
+  source_url: string;
+}
+
+export interface IngestOptions {
+  law: string;
+  skip_fetch?: boolean;
+  skip_graph?: boolean;
+  skip_vector?: boolean;
+  force_recreate_vector?: boolean;
+  dry_run?: boolean;
+}
+
+export interface IngestResponse {
+  status: string;
+  law: string;
+  message: string;
+}
+

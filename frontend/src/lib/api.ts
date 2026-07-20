@@ -1,4 +1,4 @@
-import { Law, LegalUnit, GraphData, AskResponse } from './types';
+import { Law, LegalUnit, GraphData, AskResponse, RegistryEntry, IngestOptions, IngestResponse } from './types';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
 
@@ -59,3 +59,61 @@ export async function askQuestion(question: string, law?: string, topK?: number)
   }
   return await res.json();
 }
+
+export async function getLawRegistry(adminKey?: string): Promise<RegistryEntry[]> {
+  const headers: Record<string, string> = {};
+  if (adminKey) {
+    headers['X-Admin-Key'] = adminKey;
+  }
+
+  const res = await fetch(`${BACKEND_URL}/api/v1/admin/registry`, { headers });
+  if (!res.ok) {
+    throw new Error(`Failed to fetch law registry: ${res.statusText}`);
+  }
+  return await res.json();
+}
+
+export async function triggerIngestion(options: IngestOptions, adminKey?: string): Promise<IngestResponse> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (adminKey) {
+    headers['X-Admin-Key'] = adminKey;
+  }
+
+  const res = await fetch(`${BACKEND_URL}/api/v1/admin/ingest`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(options),
+  });
+
+  if (!res.ok) {
+    let detail = res.statusText;
+    try {
+      const errData = await res.json();
+      if (errData.detail) detail = typeof errData.detail === 'string' ? errData.detail : JSON.stringify(errData.detail);
+    } catch (_) {}
+    throw new Error(`Ingestion failed: ${detail}`);
+  }
+
+  return await res.json();
+}
+
+export async function triggerCheckUpdates(autoReingest: boolean = false, adminKey?: string): Promise<{ status: string; message: string }> {
+  const headers: Record<string, string> = {};
+  if (adminKey) {
+    headers['X-Admin-Key'] = adminKey;
+  }
+
+  const res = await fetch(`${BACKEND_URL}/api/v1/admin/check-updates?auto_reingest=${autoReingest}`, {
+    method: 'POST',
+    headers,
+  });
+
+  if (!res.ok) {
+    throw new Error(`Update check failed: ${res.statusText}`);
+  }
+
+  return await res.json();
+}
+
