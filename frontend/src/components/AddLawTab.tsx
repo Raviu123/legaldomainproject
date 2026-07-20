@@ -1,15 +1,14 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { RegistryEntry, IngestOptions } from '../lib/types';
-import { getLawRegistry, triggerIngestion, triggerCheckUpdates } from '../lib/api';
+import { getLawRegistry, triggerIngestion, triggerIngestionFile, triggerCheckUpdates, deleteLaw } from '../lib/api';
 import {
   PlusCircle,
   Play,
   RefreshCw,
   CheckCircle2,
   AlertCircle,
-  Key,
   Globe,
   Database,
   ExternalLink,
@@ -17,7 +16,13 @@ import {
   Layers,
   Sparkles,
   Sliders,
-  FileText
+  FileText,
+  UploadCloud,
+  FileCheck,
+  X,
+  FilePlus,
+  BookOpen,
+  Trash2
 } from 'lucide-react';
 
 interface AddLawTabProps {
@@ -35,25 +40,54 @@ const DEFAULT_LAWS: RegistryEntry[] = [
   { identifier: 'ccpa', name: 'CCPA', full_name: 'California Consumer Privacy Act (US)', jurisdiction: 'US', status: 'COMING_SOON', source_url: 'https://leginfo.legislature.ca.gov' },
   { identifier: 'lgpd', name: 'LGPD', full_name: 'Lei Geral de Proteção de Dados (Brazil)', jurisdiction: 'BR', status: 'COMING_SOON', source_url: 'https://www.planalto.gov.br' },
   { identifier: 'privacy_act_au', name: 'Privacy Act', full_name: 'Privacy Act 1988 (Australia)', jurisdiction: 'AU', status: 'ACTIVE', source_url: 'https://www.legislation.gov.au/C2004A03712/latest/text' },
+  { identifier: 'sg_pdpa', name: 'PDPA', full_name: 'Personal Data Protection Act 2012 (Singapore)', jurisdiction: 'SG', status: 'ACTIVE', source_url: 'https://sso.agc.gov.sg/Act/PDPA2012' },
 ];
+
+const JURISDICTION_NAMES: Record<string, string> = {
+  EU: 'European Union (EU)',
+  IN: 'India (IN)',
+  UK: 'United Kingdom (UK)',
+  US: 'United States (US)',
+  AU: 'Australia (AU)',
+  BR: 'Brazil (BR)',
+  SG: 'Singapore (SG)',
+  CA: 'Canada (CA)',
+  JP: 'Japan (JP)',
+  GLOBAL: 'Global / Other (GLOBAL)',
+};
 
 export default function AddLawTab({ onIngestionSuccess }: AddLawTabProps) {
   // Registry state
   const [registry, setRegistry] = useState<RegistryEntry[]>(DEFAULT_LAWS);
   const [loadingRegistry, setLoadingRegistry] = useState<boolean>(false);
 
-  // Ingestion Form State
+  // Sub-Tab Mode: 'existing' | 'new'
+  const [activeIngestTab, setActiveIngestTab] = useState<'existing' | 'new'>('existing');
+
+  // Existing Law Cascading Selection State
+  const [selectedJurisdiction, setSelectedJurisdiction] = useState<string>('EU');
   const [selectedLaw, setSelectedLaw] = useState<string>('gdpr');
+
+  // New Law Custom Form State
+  const [newLawName, setNewLawName] = useState<string>('');
+  const [newLawJurisdiction, setNewLawJurisdiction] = useState<string>('SG');
+
+  // Ingestion Source Mode: 'url' | 'pdf'
+  const [ingestSourceMode, setIngestSourceMode] = useState<'pdf' | 'url'>('pdf');
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+
+  // Advanced Pipeline Options
   const [skipFetch, setSkipFetch] = useState<boolean>(false);
   const [skipGraph, setSkipGraph] = useState<boolean>(false);
   const [skipVector, setSkipVector] = useState<boolean>(false);
   const [forceRecreateVector, setForceRecreateVector] = useState<boolean>(false);
   const [dryRun, setDryRun] = useState<boolean>(false);
-  const [adminKey, setAdminKey] = useState<string>('');
   const [showAdvanced, setShowAdvanced] = useState<boolean>(false);
 
   // Status & Feedback state
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [deletingLawId, setDeletingLawId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Update check state
@@ -66,7 +100,7 @@ export default function AddLawTab({ onIngestionSuccess }: AddLawTabProps) {
     const fetchRegistry = async () => {
       setLoadingRegistry(true);
       try {
-        const data = await getLawRegistry(adminKey || undefined);
+        const data = await getLawRegistry();
         if (data && data.length > 0) {
           setRegistry(data);
         }
@@ -79,13 +113,88 @@ export default function AddLawTab({ onIngestionSuccess }: AddLawTabProps) {
     fetchRegistry();
   }, []);
 
+  // Compute available jurisdictions dynamically for existing laws
+  const jurisdictions = useMemo(() => {
+    const set = new Set<string>();
+    registry.forEach((item) => set.add(item.jurisdiction));
+    return Array.from(set);
+  }, [registry]);
+
+  // Compute laws available for currently selected jurisdiction
+  const lawsForJurisdiction = useMemo(() => {
+    return registry.filter((item) => item.jurisdiction === selectedJurisdiction);
+  }, [registry, selectedJurisdiction]);
+
+  // Handle Jurisdiction change in cascading dropdown
+  const handleJurisdictionChange = (newJur: string) => {
+    setSelectedJurisdiction(newJur);
+    const matchingLaws = registry.filter((l) => l.jurisdiction === newJur);
+    if (matchingLaws.length > 0) {
+      setSelectedLaw(matchingLaws[0].identifier);
+    }
+  };
+
+  // Drag & drop handlers for PDF file upload
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0];
+      if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+        setPdfFile(file);
+        setFeedback(null);
+      } else {
+        setFeedback({ type: 'error', message: 'Please drop a valid PDF file (.pdf format).' });
+      }
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+        setPdfFile(file);
+        setFeedback(null);
+      } else {
+        setFeedback({ type: 'error', message: 'Please select a valid PDF file (.pdf format).' });
+      }
+    }
+  };
+
   const handleIngestSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     setFeedback(null);
 
+    let targetLawIdentifier = selectedLaw;
+
+    if (activeIngestTab === 'new') {
+      if (!newLawName.trim()) {
+        setFeedback({ type: 'error', message: 'Please enter a name or short code for the new law.' });
+        setIsSubmitting(false);
+        return;
+      }
+      targetLawIdentifier = newLawName.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
+    }
+
+    if (ingestSourceMode === 'pdf' && !pdfFile) {
+      setFeedback({ type: 'error', message: 'Please select or drop a PDF file to proceed with file ingestion.' });
+      setIsSubmitting(false);
+      return;
+    }
+
     const payload: IngestOptions = {
-      law: selectedLaw,
+      law: targetLawIdentifier,
       skip_fetch: skipFetch,
       skip_graph: skipGraph,
       skip_vector: skipVector,
@@ -94,11 +203,24 @@ export default function AddLawTab({ onIngestionSuccess }: AddLawTabProps) {
     };
 
     try {
-      const res = await triggerIngestion(payload, adminKey || undefined);
+      let res;
+      if (ingestSourceMode === 'pdf' && pdfFile) {
+        res = await triggerIngestionFile(pdfFile, payload);
+      } else {
+        res = await triggerIngestion(payload);
+      }
+
       setFeedback({
         type: 'success',
-        message: res.message || `Ingestion job for ${selectedLaw.toUpperCase()} successfully queued!`,
+        message: res.message || `Ingestion job for ${targetLawIdentifier.toUpperCase()} successfully queued!`,
       });
+
+      // Refresh registry list to show the newly added law immediately
+      try {
+        const freshData = await getLawRegistry();
+        if (freshData && freshData.length > 0) setRegistry(freshData);
+      } catch (_) {}
+
       if (onIngestionSuccess) onIngestionSuccess();
     } catch (err: any) {
       setFeedback({
@@ -115,7 +237,7 @@ export default function AddLawTab({ onIngestionSuccess }: AddLawTabProps) {
     setUpdateFeedback(null);
 
     try {
-      const res = await triggerCheckUpdates(autoReingest, adminKey || undefined);
+      const res = await triggerCheckUpdates(autoReingest);
       setUpdateFeedback({
         type: 'success',
         message: res.message || 'Source document update check queued across all active laws.',
@@ -130,9 +252,40 @@ export default function AddLawTab({ onIngestionSuccess }: AddLawTabProps) {
     }
   };
 
-  const handleQuickIngest = (lawId: string) => {
-    setSelectedLaw(lawId);
+  const handleQuickIngest = (law: RegistryEntry) => {
+    setActiveIngestTab('existing');
+    setSelectedJurisdiction(law.jurisdiction);
+    setSelectedLaw(law.identifier);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleDeleteLaw = async (lawId: string, lawName: string) => {
+    const confirmed = window.confirm(
+      `Are you sure you want to completely delete '${lawName}' (${lawId})?\n\nThis will purge data from:\n1. Neo4j Knowledge Graph\n2. Qdrant Vector DB\n3. PostgreSQL Database\n4. Raw & Normalized Disk Caches`
+    );
+    if (!confirmed) return;
+
+    setDeletingLawId(lawId);
+    setFeedback(null);
+
+    try {
+      const res = await deleteLaw(lawId);
+      setFeedback({
+        type: 'success',
+        message: `Law '${lawId.toUpperCase()}' deleted successfully across Neo4j, Qdrant, PostgreSQL, and disk caches!`,
+      });
+
+      const freshData = await getLawRegistry();
+      if (freshData) setRegistry(freshData);
+      if (onIngestionSuccess) onIngestionSuccess();
+    } catch (err: any) {
+      setFeedback({
+        type: 'error',
+        message: err.message || `Failed to delete law '${lawId}'.`,
+      });
+    } finally {
+      setDeletingLawId(null);
+    }
   };
 
   return (
@@ -151,7 +304,7 @@ export default function AddLawTab({ onIngestionSuccess }: AddLawTabProps) {
                 </h2>
               </div>
               <p className="max-w-2xl text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
-                Trigger background ingestion, parsing, knowledge graph construction in Neo4j, and vector indexing in Qdrant for registered statutory legal frameworks.
+                Trigger background ingestion, parsing, knowledge graph construction in Neo4j, and vector indexing in Qdrant for statutory legal frameworks.
               </p>
             </div>
 
@@ -160,7 +313,7 @@ export default function AddLawTab({ onIngestionSuccess }: AddLawTabProps) {
                 onClick={async () => {
                   setLoadingRegistry(true);
                   try {
-                    const data = await getLawRegistry(adminKey || undefined);
+                    const data = await getLawRegistry();
                     if (data && data.length > 0) setRegistry(data);
                   } catch (_) {}
                   setLoadingRegistry(false);
@@ -179,57 +332,227 @@ export default function AddLawTab({ onIngestionSuccess }: AddLawTabProps) {
           {/* Main Ingestion Form */}
           <div className="lg:col-span-7 space-y-6">
             <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+              {/* Header */}
               <div className="flex items-center justify-between border-b border-zinc-100 pb-4 dark:border-zinc-800">
                 <div className="flex items-center gap-2">
                   <Play className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
                   <h3 className="font-semibold text-zinc-900 dark:text-white text-sm">
-                    Trigger Ingestion Pipeline
+                    Ingestion Pipeline Trigger
                   </h3>
                 </div>
                 <span className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-[11px] font-semibold text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400">
-                  POST /api/v1/admin/ingest
+                  {ingestSourceMode === 'pdf' ? 'POST /api/v1/admin/ingest-file' : 'POST /api/v1/admin/ingest'}
                 </span>
               </div>
 
+              {/* Sub-Tabs: Update Existing Law vs Ingest New Custom Law */}
+              <div className="mt-4 flex border-b border-zinc-200 dark:border-zinc-800">
+                <button
+                  type="button"
+                  onClick={() => setActiveIngestTab('existing')}
+                  className={`flex items-center gap-2 border-b-2 px-4 py-2 text-xs font-bold transition-all ${
+                    activeIngestTab === 'existing'
+                      ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400'
+                      : 'border-transparent text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200'
+                  }`}
+                >
+                  <BookOpen className="h-3.5 w-3.5" />
+                  <span>Update Catalog Law</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveIngestTab('new')}
+                  className={`flex items-center gap-2 border-b-2 px-4 py-2 text-xs font-bold transition-all ${
+                    activeIngestTab === 'new'
+                      ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400'
+                      : 'border-transparent text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200'
+                  }`}
+                >
+                  <FilePlus className="h-3.5 w-3.5" />
+                  <span>Ingest Brand New Law (PDF / URL)</span>
+                </button>
+              </div>
+
               <form onSubmit={handleIngestSubmit} className="mt-5 space-y-5">
-                {/* Select Law Dropdown */}
+                {/* SUB-TAB 1: Existing Catalog Laws (Cascading Dropdowns) */}
+                {activeIngestTab === 'existing' ? (
+                  <div className="space-y-4">
+                    {/* Cascading Dropdown 1: Jurisdiction / Region */}
+                    <div>
+                      <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
+                        1. Select Jurisdiction / Region <span className="text-rose-500">*</span>
+                      </label>
+                      <select
+                        value={selectedJurisdiction}
+                        onChange={(e) => handleJurisdictionChange(e.target.value)}
+                        className="w-full rounded-xl border border-zinc-300 bg-white p-2.5 text-xs font-semibold text-zinc-900 shadow-sm focus:border-indigo-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-indigo-400"
+                        required
+                      >
+                        {jurisdictions.map((jur) => (
+                          <option
+                            key={jur}
+                            value={jur}
+                            className="bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100 font-medium py-1"
+                          >
+                            {JURISDICTION_NAMES[jur] || jur}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Cascading Dropdown 2: Target Registered Law */}
+                    <div>
+                      <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
+                        2. Select Registered Catalog Law ({lawsForJurisdiction.length} available) <span className="text-rose-500">*</span>
+                      </label>
+                      <select
+                        value={selectedLaw}
+                        onChange={(e) => setSelectedLaw(e.target.value)}
+                        className="w-full rounded-xl border border-zinc-300 bg-white p-2.5 text-xs font-semibold text-zinc-900 shadow-sm focus:border-indigo-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-indigo-400"
+                        required
+                      >
+                        {lawsForJurisdiction.map((law) => (
+                          <option
+                            key={law.identifier}
+                            value={law.identifier}
+                            className="bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100 font-medium py-1"
+                          >
+                            {law.name} ({law.identifier}) — {law.full_name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                ) : (
+                  /* SUB-TAB 2: New Custom Law Form */
+                  <div className="space-y-4">
+                    <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-3 text-xs text-indigo-800 dark:border-indigo-900/40 dark:bg-indigo-950/30 dark:text-indigo-300">
+                      💡 Drop any PDF file or URL for an unlisted country or new statutory framework (e.g. Singapore PDPA, Canada PIPEDA). It will be dynamically registered and structured automatically!
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
+                        New Law Short Name / Identifier <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. pdpa_sg, hipaa, singapore_privacy"
+                        value={newLawName}
+                        onChange={(e) => setNewLawName(e.target.value)}
+                        className="w-full rounded-xl border border-zinc-300 bg-white p-2.5 text-xs font-semibold text-zinc-900 focus:border-indigo-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
+                        Select Region / Jurisdiction <span className="text-rose-500">*</span>
+                      </label>
+                      <select
+                        value={newLawJurisdiction}
+                        onChange={(e) => setNewLawJurisdiction(e.target.value)}
+                        className="w-full rounded-xl border border-zinc-300 bg-white p-2.5 text-xs font-semibold text-zinc-900 focus:border-indigo-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                      >
+                        {Object.entries(JURISDICTION_NAMES).map(([code, label]) => (
+                          <option key={code} value={code} className="bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100">
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                )}
+
+                {/* Ingestion Source Mode Toggle (PDF vs URL) */}
                 <div>
                   <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
-                    Target Law Identifier <span className="text-rose-500">*</span>
+                    Ingestion Input Format
                   </label>
-                  <div className="relative">
-                    <select
-                      value={selectedLaw}
-                      onChange={(e) => setSelectedLaw(e.target.value)}
-                      className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 p-2.5 text-xs font-medium text-zinc-900 focus:border-indigo-500 focus:bg-white focus:outline-none dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:focus:border-indigo-400"
-                      required
+                  <div className="flex rounded-xl bg-zinc-100 p-1 dark:bg-zinc-800/60">
+                    <button
+                      type="button"
+                      onClick={() => setIngestSourceMode('pdf')}
+                      className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-xs font-semibold transition-all ${
+                        ingestSourceMode === 'pdf'
+                          ? 'bg-white text-indigo-600 shadow-sm dark:bg-zinc-900 dark:text-indigo-400'
+                          : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
+                      }`}
                     >
-                      {registry.map((law) => (
-                        <option key={law.identifier} value={law.identifier}>
-                          {law.name} ({law.identifier}) — {law.full_name}
-                        </option>
-                      ))}
-                    </select>
+                      <UploadCloud className="h-3.5 w-3.5" />
+                      <span>Upload Local PDF File</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIngestSourceMode('url')}
+                      className={`flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-xs font-semibold transition-all ${
+                        ingestSourceMode === 'url'
+                          ? 'bg-white text-indigo-600 shadow-sm dark:bg-zinc-900 dark:text-indigo-400'
+                          : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
+                      }`}
+                    >
+                      <Globe className="h-3.5 w-3.5" />
+                      <span>Web Crawl (Source URL)</span>
+                    </button>
                   </div>
-                  <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
-                    Select a law registered in the backend LAW_REGISTRY dict.
-                  </p>
                 </div>
 
-                {/* API Key Header field */}
-                <div>
-                  <label className="flex items-center gap-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
-                    <Key className="h-3.5 w-3.5 text-zinc-400" />
-                    <span>Admin Key Header (Optional in Dev)</span>
-                  </label>
-                  <input
-                    type="password"
-                    placeholder="X-Admin-Key (Leave empty for local dev)"
-                    value={adminKey}
-                    onChange={(e) => setAdminKey(e.target.value)}
-                    className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 p-2.5 text-xs font-mono text-zinc-900 focus:border-indigo-500 focus:bg-white focus:outline-none dark:border-zinc-800 dark:bg-zinc-950 dark:text-white"
-                  />
-                </div>
+                {/* PDF Drag & Drop File Zone (if PDF mode selected) */}
+                {ingestSourceMode === 'pdf' && (
+                  <div>
+                    {!pdfFile ? (
+                      <div
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                        onDrop={handleDrop}
+                        className={`relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-6 text-center transition-all cursor-pointer ${
+                          isDragging
+                            ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/30'
+                            : 'border-zinc-300 bg-zinc-50/50 hover:border-indigo-400 dark:border-zinc-700 dark:bg-zinc-950/50'
+                        }`}
+                      >
+                        <input
+                          type="file"
+                          accept=".pdf,application/pdf"
+                          onChange={handleFileSelect}
+                          className="absolute inset-0 cursor-pointer opacity-0"
+                        />
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-indigo-100 text-indigo-600 dark:bg-indigo-950 dark:text-indigo-400 mb-2">
+                          <UploadCloud className="h-6 w-6" />
+                        </div>
+                        <p className="text-xs font-semibold text-zinc-900 dark:text-white">
+                          Drag and drop PDF file here, or <span className="text-indigo-600 dark:text-indigo-400 underline">browse</span>
+                        </p>
+                        <p className="mt-1 text-[11px] text-zinc-500">
+                          Supports legal statutory documents (.pdf). Automatically structured by AI Universal Engine.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between rounded-xl border border-indigo-200 bg-indigo-50/40 p-3.5 dark:border-indigo-900/50 dark:bg-indigo-950/30">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-600 text-white">
+                            <FileCheck className="h-5 w-5" />
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-zinc-900 dark:text-white truncate max-w-xs">
+                              {pdfFile.name}
+                            </p>
+                            <p className="text-[11px] text-zinc-500">
+                              {(pdfFile.size / (1024 * 1024)).toFixed(2)} MB • PDF Document
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setPdfFile(null)}
+                          className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+                          title="Remove PDF"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Advanced Options Toggle */}
                 <div className="pt-2">
@@ -249,11 +572,14 @@ export default function AddLawTab({ onIngestionSuccess }: AddLawTabProps) {
                           type="checkbox"
                           checked={skipFetch}
                           onChange={(e) => setSkipFetch(e.target.checked)}
+                          disabled={ingestSourceMode === 'pdf'}
                           className="h-4 w-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
                         />
                         <div>
                           <span className="font-semibold block">Skip Fetch</span>
-                          <span className="text-[11px] text-zinc-500">Reuse cached raw file; skip downloading source document.</span>
+                          <span className="text-[11px] text-zinc-500">
+                            {ingestSourceMode === 'pdf' ? 'Automatically active when uploading a PDF file.' : 'Reuse cached raw file; skip downloading source document.'}
+                          </span>
                         </div>
                       </label>
 
@@ -326,7 +652,11 @@ export default function AddLawTab({ onIngestionSuccess }: AddLawTabProps) {
                   ) : (
                     <>
                       <Play className="h-4 w-4 fill-current" />
-                      <span>Start Ingestion Pipeline for {selectedLaw.toUpperCase()}</span>
+                      <span>
+                        {activeIngestTab === 'new'
+                          ? `Start Ingestion for New Law '${(newLawName || 'Custom Law').toUpperCase()}'`
+                          : `Start Ingestion for '${selectedLaw.toUpperCase()}'`}
+                      </span>
                     </>
                   )}
                 </button>
@@ -352,7 +682,7 @@ export default function AddLawTab({ onIngestionSuccess }: AddLawTabProps) {
             </div>
           </div>
 
-          {/* Right Column: Update Check & Codebase Guide */}
+          {/* Right Column: Update Check & Developer Guide */}
           <div className="lg:col-span-5 space-y-6">
             {/* Update Checker Card */}
             <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
@@ -415,11 +745,11 @@ export default function AddLawTab({ onIngestionSuccess }: AddLawTabProps) {
               <div className="flex items-center gap-2 border-b border-zinc-100 pb-3 dark:border-zinc-800">
                 <Code className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
                 <h3 className="font-semibold text-zinc-900 dark:text-white text-sm">
-                  Adding New Custom Law
+                  Universal AI Legal Engine
                 </h3>
               </div>
               <p className="mt-3 text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                To register a brand new statutory law into the LegalGraph engine:
+                All statutory files (PDF, HTML) are now processed by the Universal AI Legal Engine.
               </p>
 
               <ol className="mt-3 space-y-2.5 text-xs text-zinc-600 dark:text-zinc-400">
@@ -428,7 +758,7 @@ export default function AddLawTab({ onIngestionSuccess }: AddLawTabProps) {
                     1
                   </span>
                   <span>
-                    Add identifier enum in <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-[11px] dark:bg-zinc-800">app/core/constants.py</code>
+                    Converts PDF/HTML layout to clean structured Markdown.
                   </span>
                 </li>
                 <li className="flex items-start gap-2">
@@ -436,7 +766,7 @@ export default function AddLawTab({ onIngestionSuccess }: AddLawTabProps) {
                     2
                   </span>
                   <span>
-                    Register metadata & parser module in <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-[11px] dark:bg-zinc-800">LAW_REGISTRY</code>
+                    Extracts chapters, articles, defined terms, and references via AI.
                   </span>
                 </li>
                 <li className="flex items-start gap-2">
@@ -444,20 +774,10 @@ export default function AddLawTab({ onIngestionSuccess }: AddLawTabProps) {
                     3
                   </span>
                   <span>
-                    Implement raw HTML/PDF parser in <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-[11px] dark:bg-zinc-800">app/ingestion/parsers/</code>
+                    Indexes directly into Neo4j Knowledge Graph & Qdrant vectors.
                   </span>
                 </li>
               </ol>
-
-              <div className="mt-4 rounded-xl bg-zinc-900 p-3 font-mono text-[11px] text-zinc-300 overflow-x-auto dark:bg-zinc-950">
-                <div className="text-zinc-500"># Example entry in LAW_REGISTRY:</div>
-                <div className="text-indigo-400">LawIdentifier.MY_LAW: &#123;</div>
-                <div className="pl-3 text-emerald-400">&quot;name&quot;: &quot;My Law 2026&quot;,</div>
-                <div className="pl-3 text-emerald-400">&quot;jurisdiction&quot;: Jurisdiction.EU,</div>
-                <div className="pl-3 text-emerald-400">&quot;status&quot;: LawStatus.ACTIVE,</div>
-                <div className="pl-3 text-emerald-400">&quot;source_url&quot;: &quot;https://...&quot;</div>
-                <div className="text-indigo-400">&#125;</div>
-              </div>
             </div>
           </div>
         </div>
@@ -525,10 +845,20 @@ export default function AddLawTab({ onIngestionSuccess }: AddLawTabProps) {
                         </a>
                       )}
                       <button
-                        onClick={() => handleQuickIngest(law.identifier)}
+                        onClick={() => handleQuickIngest(law)}
                         className="rounded-lg bg-zinc-100 px-2.5 py-1 text-[11px] font-medium text-zinc-700 hover:bg-indigo-50 hover:text-indigo-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-indigo-950 dark:hover:text-indigo-300 transition-colors"
                       >
-                        Ingest
+                        Select
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteLaw(law.identifier, law.name)}
+                        disabled={deletingLawId === law.identifier}
+                        className="flex items-center gap-1 rounded-lg bg-rose-50 px-2.5 py-1 text-[11px] font-semibold text-rose-600 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-400 dark:hover:bg-rose-900/60 transition-colors disabled:opacity-50"
+                        title="Purge law from Neo4j, Qdrant, PostgreSQL, and disk caches"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                        <span>{deletingLawId === law.identifier ? 'Purging...' : 'Delete'}</span>
                       </button>
                     </div>
                   </div>

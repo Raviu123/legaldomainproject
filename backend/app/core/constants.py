@@ -111,7 +111,7 @@ class LawIdentifier(str, Enum):
     LGPD = "lgpd"
 
     # Singapore
-    PDPA_SG = "pdpa_sg"
+    PDPA_SG = "sg_pdpa"
 
     # China
     PIPL = "pipl"
@@ -338,5 +338,19 @@ LAW_REGISTRY: Dict[LawIdentifier, Dict[str, Any]] = {
         "id_prefix": "privacy_act_au",
         "parser_module": "au_legislation_privacy_act",
         "description": "Australian federal law regulating the handling of personal information.",
+    },
+    LawIdentifier.PDPA_SG: {
+        "identifier": LawIdentifier.PDPA_SG,
+        "name": "PDPA",
+        "full_name": "Personal Data Protection Act 2012 (Singapore)",
+        "jurisdiction": Jurisdiction.SG,
+        "categories": [LawCategory.DATA_PRIVACY],
+        "status": LawStatus.ACTIVE,
+        "source_url": "https://sso.agc.gov.sg/Act/PDPA2012",
+        "source_type": "pdf",
+        "collection_name": "sg_pdpa",
+        "id_prefix": "sg_pdpa",
+        "parser_module": "universal_ai",
+        "description": "Singapore statutory law governing the collection, use, and disclosure of personal data by organizations.",
     },
 }

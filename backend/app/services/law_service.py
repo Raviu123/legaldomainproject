@@ -30,50 +30,63 @@ class LawService:
 
     def list_laws(self) -> List[LawMetadata]:
         """Returns all supported laws and their ingestion status from the registry."""
-        return [
-            LawMetadata(
-                id=meta["identifier"].value,
-                name=meta["name"],
-                full_name=meta["full_name"],
-                description=meta.get("description", ""),
-                jurisdiction=meta["jurisdiction"].value,
-                categories=[c.value for c in meta.get("categories", [])],
-                status=meta["status"].value,
-                source_url=meta.get("source_url", ""),
+        results = []
+        for meta in LAW_REGISTRY.values():
+            id_val = meta["identifier"].value if hasattr(meta["identifier"], "value") else str(meta["identifier"])
+            jur_val = meta["jurisdiction"].value if hasattr(meta["jurisdiction"], "value") else str(meta["jurisdiction"])
+            status_val = meta["status"].value if hasattr(meta["status"], "value") else str(meta["status"])
+            cats = [c.value if hasattr(c, "value") else str(c) for c in meta.get("categories", [])]
+
+            results.append(
+                LawMetadata(
+                    id=id_val,
+                    name=meta["name"],
+                    full_name=meta["full_name"],
+                    description=meta.get("description", ""),
+                    jurisdiction=jur_val,
+                    categories=cats,
+                    status=status_val,
+                    source_url=meta.get("source_url", ""),
+                )
             )
-            for meta in LAW_REGISTRY.values()
-        ]
+        return results
 
     async def get_law_articles(self, law_id: str) -> List[LegalUnit]:
         """Returns all parsed and normalized articles/sections for a given law."""
-        # Validate identifier against registry
-        try:
-            law_enum = LawIdentifier(law_id.lower())
-        except ValueError:
+        law_clean = law_id.lower()
+        meta = None
+        for k, v in LAW_REGISTRY.items():
+            k_str = k.value if hasattr(k, "value") else str(k)
+            if k_str == law_clean:
+                meta = v
+                break
+
+        if meta is None:
             raise HTTPException(
                 status_code=404,
-                detail=f"Law '{law_id}' is not registered. "
-                f"Known laws: {[l.value for l in LawIdentifier]}",
+                detail=f"Law '{law_id}' is not registered.",
             )
 
-        meta = LAW_REGISTRY.get(law_enum)
-        if meta is None or meta["status"] != LawStatus.ACTIVE:
+        status_val = meta["status"].value if hasattr(meta["status"], "value") else str(meta["status"])
+        if status_val != "active":
             raise HTTPException(
                 status_code=404,
-                detail=f"Law '{law_id}' is registered but not yet active "
-                f"(status: {meta['status'].value if meta else 'unknown'}). "
-                "Run the ingestion pipeline first.",
+                detail=f"Law '{law_id}' is registered but not yet active (status: {status_val}). Run ingestion first.",
             )
 
         try:
-            units = await self.legal_unit_repo.get_by_law(law_id.upper())
+            units = await self.legal_unit_repo.get_by_law(law_clean.upper())
             if not units:
-                raise HTTPException(
-                    status_code=404,
-                    detail=f"Normalized data for '{law_id}' not found in database. "
-                    f"Please run the ingestion pipeline for '{law_id}' first.",
-                )
-            
+                # Fallback to normalized JSON file if DB query returns empty list
+                from app.ingestion.normalizer import load_normalized_file
+                try:
+                    return load_normalized_file(f"{law_clean}.json")
+                except Exception:
+                    raise HTTPException(
+                        status_code=404,
+                        detail=f"Normalized data for '{law_id}' not found. Please run the ingestion pipeline for '{law_id}' first.",
+                    )
+
             return [
                 LegalUnit(
                     id=u.id,
@@ -102,3 +115,4 @@ class LawService:
                 status_code=500,
                 detail=f"Failed to read normalized law data for '{law_id}': {exc}",
             )
+

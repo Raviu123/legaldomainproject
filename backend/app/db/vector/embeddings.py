@@ -3,8 +3,7 @@
 Generates embeddings locally using SentenceTransformers (default: BAAI/bge-small-en-v1.5).
 """
 
-from typing import List, Optional
-from sentence_transformers import SentenceTransformer
+from typing import Any, List, Optional
 
 from app.core.config import settings
 from app.core.logging import qdrant_logger
@@ -15,20 +14,22 @@ class EmbeddingModel:
 
     def __init__(self, model_name: Optional[str] = None):
         self.model_name = model_name or settings.EMBEDDING_MODEL
-        self._model: Optional[SentenceTransformer] = None
+        self._model: Optional[Any] = None
 
     @property
-    def model(self) -> SentenceTransformer:
+    def model(self) -> Any:
         """Returns the SentenceTransformer model, loading it if not already loaded."""
         if self._model is None:
             qdrant_logger.info(f"Loading local SentenceTransformer model: {self.model_name}...")
             try:
+                from sentence_transformers import SentenceTransformer
                 self._model = SentenceTransformer(self.model_name)
                 qdrant_logger.info(f"Successfully loaded model: {self.model_name}")
             except Exception as e:
                 qdrant_logger.error(f"Failed to load embedding model '{self.model_name}': {e}")
                 raise
         return self._model
+
 
     def embed_query(self, text: str) -> List[float]:
         """Embeds a search query.

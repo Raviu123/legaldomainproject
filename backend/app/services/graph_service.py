@@ -36,10 +36,11 @@ class GraphService:
     def __init__(self, graph_repo: GraphRepository = None) -> None:
         self.graph_repo = graph_repo or GraphRepository()
 
-    async def get_graph_data(self, law: Optional[str] = None) -> GraphDataResponse:
+    async def get_graph_data(self, law: Optional[str] = None, limit: Optional[int] = None) -> GraphDataResponse:
         """Fetches the legal knowledge graph from Neo4j, formatted for visualization."""
         try:
-            node_records, rel_records = await self.graph_repo.get_nodes_and_edges(law)
+            node_records, rel_records = await self.graph_repo.get_nodes_and_edges(law=law, limit=limit)
+
 
             nodes = []
             for rec in node_records:

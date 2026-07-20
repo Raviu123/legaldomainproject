@@ -40,13 +40,19 @@ export async function getLawArticles(lawId: string): Promise<LegalUnit[]> {
   return await res.json();
 }
 
-export async function getGraphData(): Promise<GraphData> {
-  const res = await fetch(`${BACKEND_URL}/api/v1/graph`);
+export async function getGraphData(law?: string, limit?: number): Promise<GraphData> {
+  const params = new URLSearchParams();
+  if (law) params.append('law', law);
+  if (limit) params.append('limit', limit.toString());
+  const queryString = params.toString() ? `?${params.toString()}` : '';
+
+  const res = await fetch(`${BACKEND_URL}/api/v1/graph${queryString}`);
   if (!res.ok) {
     throw new Error(`Failed to fetch graph data from backend: ${res.statusText}`);
   }
   return await res.json();
 }
+
 
 export async function askQuestion(question: string, law?: string, topK?: number): Promise<AskResponse> {
   const res = await fetch(`${BACKEND_URL}/api/v1/ask`, {
@@ -60,30 +66,20 @@ export async function askQuestion(question: string, law?: string, topK?: number)
   return await res.json();
 }
 
-export async function getLawRegistry(adminKey?: string): Promise<RegistryEntry[]> {
-  const headers: Record<string, string> = {};
-  if (adminKey) {
-    headers['X-Admin-Key'] = adminKey;
-  }
-
-  const res = await fetch(`${BACKEND_URL}/api/v1/admin/registry`, { headers });
+export async function getLawRegistry(): Promise<RegistryEntry[]> {
+  const res = await fetch(`${BACKEND_URL}/api/v1/admin/registry`);
   if (!res.ok) {
     throw new Error(`Failed to fetch law registry: ${res.statusText}`);
   }
   return await res.json();
 }
 
-export async function triggerIngestion(options: IngestOptions, adminKey?: string): Promise<IngestResponse> {
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-  if (adminKey) {
-    headers['X-Admin-Key'] = adminKey;
-  }
-
+export async function triggerIngestion(options: IngestOptions): Promise<IngestResponse> {
   const res = await fetch(`${BACKEND_URL}/api/v1/admin/ingest`, {
     method: 'POST',
-    headers,
+    headers: {
+      'Content-Type': 'application/json',
+    },
     body: JSON.stringify(options),
   });
 
@@ -99,15 +95,35 @@ export async function triggerIngestion(options: IngestOptions, adminKey?: string
   return await res.json();
 }
 
-export async function triggerCheckUpdates(autoReingest: boolean = false, adminKey?: string): Promise<{ status: string; message: string }> {
-  const headers: Record<string, string> = {};
-  if (adminKey) {
-    headers['X-Admin-Key'] = adminKey;
+export async function triggerIngestionFile(file: File, options: IngestOptions): Promise<IngestResponse> {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('law', options.law);
+  if (options.skip_graph !== undefined) formData.append('skip_graph', String(options.skip_graph));
+  if (options.skip_vector !== undefined) formData.append('skip_vector', String(options.skip_vector));
+  if (options.force_recreate_vector !== undefined) formData.append('force_recreate_vector', String(options.force_recreate_vector));
+  if (options.dry_run !== undefined) formData.append('dry_run', String(options.dry_run));
+
+  const res = await fetch(`${BACKEND_URL}/api/v1/admin/ingest-file`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!res.ok) {
+    let detail = res.statusText;
+    try {
+      const errData = await res.json();
+      if (errData.detail) detail = typeof errData.detail === 'string' ? errData.detail : JSON.stringify(errData.detail);
+    } catch (_) {}
+    throw new Error(`File ingestion failed: ${detail}`);
   }
 
+  return await res.json();
+}
+
+export async function triggerCheckUpdates(autoReingest: boolean = false): Promise<{ status: string; message: string }> {
   const res = await fetch(`${BACKEND_URL}/api/v1/admin/check-updates?auto_reingest=${autoReingest}`, {
     method: 'POST',
-    headers,
   });
 
   if (!res.ok) {
@@ -116,4 +132,23 @@ export async function triggerCheckUpdates(autoReingest: boolean = false, adminKe
 
   return await res.json();
 }
+
+export async function deleteLaw(lawId: string): Promise<any> {
+  const res = await fetch(`${BACKEND_URL}/api/v1/admin/laws/${lawId}`, {
+    method: 'DELETE',
+  });
+
+  if (!res.ok) {
+    let detail = res.statusText;
+    try {
+      const errData = await res.json();
+      if (errData.detail) detail = typeof errData.detail === 'string' ? errData.detail : JSON.stringify(errData.detail);
+    } catch (_) {}
+    throw new Error(`Failed to delete law: ${detail}`);
+  }
+
+  return await res.json();
+}
+
+
 

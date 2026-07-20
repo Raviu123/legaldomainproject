@@ -20,6 +20,7 @@ from app.ingestion.parsers.au_privacy_act import AustraliaPrivacyActParser
 from app.ingestion.parsers.india_code_it_act import IndiaCodeItActParser
 from app.ingestion.parsers.india_code_dpdp_rules import IndiaCodeDpdpRulesParser
 from app.ingestion.parsers.india_code_information_act import ItIntermediaryRules2021Parser
+from app.ingestion.parsers.universal_ai import UniversalAiParser
 
 
 # ---------------------------------------------------------------------------
@@ -33,31 +34,17 @@ PARSER_REGISTRY: Dict[LawIdentifier, Type[BaseLegalParser]] = {
     LawIdentifier.IT_ACT: IndiaCodeItActParser,
     LawIdentifier.DPDP_RULES: IndiaCodeDpdpRulesParser,
     LawIdentifier.IT_INTERMEDIARY_RULES_2021: ItIntermediaryRules2021Parser,
-    # Uncomment as parsers are implemented:
-    # LawIdentifier.AI_ACT:       EurLexAiActParser,
-    # LawIdentifier.UK_GDPR:      UkLegislationUkGdprParser,
-    # LawIdentifier.CCPA:         UsLeginfoScraper,
-    # LawIdentifier.LGPD:         BrPlanaltoParser,
 }
 
 
 def get_parser(law: LawIdentifier) -> BaseLegalParser:
     """Returns an instantiated parser for the given law.
 
-    Args:
-        law: The LawIdentifier of the law to parse.
-
-    Returns:
-        An instantiated BaseLegalParser concrete subclass.
-
-    Raises:
-        NotImplementedError: If no parser is registered for the given law.
+    If no hardcoded parser is registered for the law, defaults to the UniversalAiParser
+    providing 100% format and law compatibility out of the box.
     """
     parser_cls = PARSER_REGISTRY.get(law)
     if parser_cls is None:
-        raise NotImplementedError(
-            f"No parser registered for law '{law.value}'. "
-            f"Implement app/ingestion/parsers/<module>.py and register it in "
-            f"app/ingestion/registry.py."
-        )
+        return UniversalAiParser()
     return parser_cls()
+

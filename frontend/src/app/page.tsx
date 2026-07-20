@@ -106,7 +106,7 @@ export default function Home() {
 
         // Fetch graph structural data
         try {
-          const gData = await getGraphData();
+          const gData = await getGraphData(selectedLawId);
           setGraphData(gData);
         } catch (graphErr) {
           console.warn("Failed to load graph data, setting empty graph:", graphErr);
@@ -228,8 +228,16 @@ export default function Home() {
                 lawNotIngested={lawNotIngested}
               />
             ) : activeTab === 'graph' ? (
-              <GraphExplorer graphData={graphData} />
+              <GraphExplorer
+                graphData={graphData}
+                selectedLawId={selectedLawId}
+                onFetchGraph={async (lawId, limit) => {
+                  const data = await getGraphData(lawId, limit);
+                  setGraphData(data);
+                }}
+              />
             ) : (
+
               <AddLawTab
                 onIngestionSuccess={async () => {
                   try {

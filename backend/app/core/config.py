@@ -133,11 +133,11 @@ class Settings(BaseModel):
     # Graph & RAG Limits (Magic Numbers)
     # ------------------------------------------------------------------
     GRAPH_NODE_LIMIT: int = Field(
-        default=1000,
+        default=100,
         description="Max nodes fetched for visualization.",
     )
     GRAPH_EDGE_LIMIT: int = Field(
-        default=1500,
+        default=200,
         description="Max edges fetched for visualization.",
     )
     ASK_DEFAULT_TOP_K: int = Field(

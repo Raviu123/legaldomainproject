@@ -6,6 +6,8 @@ import { ZoomIn, ZoomOut, RefreshCw, Info, Filter, MousePointer } from 'lucide-r
 
 interface GraphExplorerProps {
   graphData: GraphData;
+  selectedLawId?: string;
+  onFetchGraph?: (lawId: string, limit: number) => Promise<void>;
 }
 
 interface SimNode extends GraphNode {
@@ -15,10 +17,12 @@ interface SimNode extends GraphNode {
   vy: number;
 }
 
-export default function GraphExplorer({ graphData }: GraphExplorerProps) {
+export default function GraphExplorer({ graphData, selectedLawId = '', onFetchGraph }: GraphExplorerProps) {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [nodes, setNodes] = useState<SimNode[]>([]);
   const [edges, setEdges] = useState<GraphRelationship[]>([]);
+  const [nodeLimit, setNodeLimit] = useState<number>(100);
+  const [isFetching, setIsFetching] = useState<boolean>(false);
   
   // Viewport state
   const [zoom, setZoom] = useState(1);
@@ -37,6 +41,7 @@ export default function GraphExplorer({ graphData }: GraphExplorerProps) {
     Article: true,
     Concept: true,
     Definition: true,
+    Chapter: true,
   });
 
   const width = 800;
@@ -58,123 +63,137 @@ export default function GraphExplorer({ graphData }: GraphExplorerProps) {
     }
   };
 
-  // Re-initialize nodes on graphData changes
+  // Precompute settled node positions in a neat concentric hierarchical layout
   useEffect(() => {
-    const initializedNodes = graphData.nodes.map((node, index) => {
-      // Position nodes in a neat circle initially
-      const angle = (index / graphData.nodes.length) * 2 * Math.PI;
-      const radius = 150 + Math.random() * 50;
-      return {
+    if (graphData.nodes.length === 0) {
+      setNodes([]);
+      setEdges([]);
+      setSelectedNode(null);
+      return;
+    }
+
+    const centerX = width / 2;
+    const centerY = height / 2;
+
+    // Categorize nodes by structural hierarchical levels
+    const lawNodes = graphData.nodes.filter((n) => n.label === 'Law');
+    const chapterNodes = graphData.nodes.filter((n) => n.label === 'Chapter');
+    const articleNodes = graphData.nodes.filter((n) => n.label === 'Article');
+    const otherNodes = graphData.nodes.filter(
+      (n) => n.label !== 'Law' && n.label !== 'Chapter' && n.label !== 'Article'
+    );
+
+    const nodeMap = new Map<string, SimNode>();
+
+    // Level 0: Law (Center)
+    lawNodes.forEach((node, idx) => {
+      const angle = (idx / Math.max(lawNodes.length, 1)) * 2 * Math.PI;
+      const radius = lawNodes.length > 1 ? 35 : 0;
+      const sn: SimNode = {
         ...node,
-        x: width / 2 + Math.cos(angle) * radius,
-        y: height / 2 + Math.sin(angle) * radius,
+        x: centerX + Math.cos(angle) * radius,
+        y: centerY + Math.sin(angle) * radius,
         vx: 0,
         vy: 0,
       };
+      nodeMap.set(node.id, sn);
     });
-    setNodes(initializedNodes);
-    setEdges(graphData.edges);
-  }, [graphData]);
 
-  // Run the force-directed simulation
-  useEffect(() => {
-    if (nodes.length === 0) return;
+    // Level 1: Chapters (Inner Ring - 130px)
+    chapterNodes.forEach((node, idx) => {
+      const angle = (idx / Math.max(chapterNodes.length, 1)) * 2 * Math.PI - Math.PI / 2;
+      const radius = 135;
+      const sn: SimNode = {
+        ...node,
+        x: centerX + Math.cos(angle) * radius,
+        y: centerY + Math.sin(angle) * radius,
+        vx: 0,
+        vy: 0,
+      };
+      nodeMap.set(node.id, sn);
+    });
 
-    let animFrame: number;
-    const forceStrength = 0.05;
-    const linkDistance = 120;
-    const repulsionStrength = 800;
-    const centerGravity = 0.02;
+    // Level 2: Articles (Middle Ring - 230px with subtle radial staggering)
+    articleNodes.forEach((node, idx) => {
+      const angle = (idx / Math.max(articleNodes.length, 1)) * 2 * Math.PI - Math.PI / 2;
+      const radius = 225 + (idx % 2 === 0 ? -12 : 12);
+      const sn: SimNode = {
+        ...node,
+        x: centerX + Math.cos(angle) * radius,
+        y: centerY + Math.sin(angle) * radius,
+        vx: 0,
+        vy: 0,
+      };
+      nodeMap.set(node.id, sn);
+    });
 
-    const tick = () => {
-      setNodes((prevNodes) => {
-        // Create working copies
-        const workingNodes = prevNodes.map((n) => ({ ...n }));
-        const nodeMap = new Map(workingNodes.map((n) => [n.id, n]));
+    // Level 3: Concepts & Definitions (Outer Ring - 310px)
+    otherNodes.forEach((node, idx) => {
+      const angle = (idx / Math.max(otherNodes.length, 1)) * 2 * Math.PI - Math.PI / 2;
+      const radius = 310 + (idx % 2 === 0 ? -15 : 15);
+      const sn: SimNode = {
+        ...node,
+        x: centerX + Math.cos(angle) * radius,
+        y: centerY + Math.sin(angle) * radius,
+        vx: 0,
+        vy: 0,
+      };
+      nodeMap.set(node.id, sn);
+    });
 
-        // 1. Repulsion between all nodes (charge force)
-        for (let i = 0; i < workingNodes.length; i++) {
-          const n1 = workingNodes[i];
-          for (let j = i + 1; j < workingNodes.length; j++) {
-            const n2 = workingNodes[j];
-            const dx = n2.x - n1.x;
-            const dy = n2.y - n1.y;
-            const distSq = dx * dx + dy * dy + 1; // avoid divide by zero
-            const dist = Math.sqrt(distSq);
+    const simNodes = Array.from(nodeMap.values());
 
-            if (dist < 300) {
-              const force = repulsionStrength / distSq;
-              const fx = (dx / dist) * force;
-              const fy = (dy / dist) * force;
-
-              // Repel each other
-              if (n1.id !== draggedNodeId) {
-                n1.vx -= fx;
-                n1.vy -= fy;
-              }
-              if (n2.id !== draggedNodeId) {
-                n2.vx += fx;
-                n2.vy += fy;
-              }
-            }
+    // Relaxation passes to eliminate overlapping nodes
+    for (let step = 0; step < 40; step++) {
+      for (let i = 0; i < simNodes.length; i++) {
+        const n1 = simNodes[i];
+        if (n1.label === 'Law') continue; // keep center stationary
+        for (let j = i + 1; j < simNodes.length; j++) {
+          const n2 = simNodes[j];
+          if (n2.label === 'Law') continue;
+          const dx = n2.x - n1.x;
+          const dy = n2.y - n1.y;
+          const distSq = dx * dx + dy * dy + 1;
+          const dist = Math.sqrt(distSq);
+          const minAllowedDist = 42;
+          if (dist < minAllowedDist) {
+            const push = (minAllowedDist - dist) * 0.2;
+            const fx = (dx / dist) * push;
+            const fy = (dy / dist) * push;
+            n1.x -= fx;
+            n1.y -= fy;
+            n2.x += fx;
+            n2.y += fy;
           }
         }
+      }
 
-        // 2. Link force (springs between connected nodes)
-        edges.forEach((edge) => {
-          const sourceNode = nodeMap.get(edge.source);
-          const targetNode = nodeMap.get(edge.target);
-
-          if (sourceNode && targetNode) {
-            const dx = targetNode.x - sourceNode.x;
-            const dy = targetNode.y - sourceNode.y;
-            const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-            const force = (dist - linkDistance) * forceStrength;
-            const fx = (dx / dist) * force;
-            const fy = (dy / dist) * force;
-
-            if (sourceNode.id !== draggedNodeId) {
-              sourceNode.vx += fx;
-              sourceNode.vy += fy;
-            }
-            if (targetNode.id !== draggedNodeId) {
-              targetNode.vx -= fx;
-              targetNode.vy -= fy;
-            }
-          }
-        });
-
-        // 3. Center gravity (pull towards screen center)
-        workingNodes.forEach((node) => {
-          if (node.id === draggedNodeId) return;
-          const dx = width / 2 - node.x;
-          const dy = height / 2 - node.y;
-          node.vx += dx * centerGravity;
-          node.vy += dy * centerGravity;
-        });
-
-        // 4. Update positions with damping
-        workingNodes.forEach((node) => {
-          if (node.id === draggedNodeId) return;
-          node.vx *= 0.85; // friction
-          node.vy *= 0.85;
-          node.x += node.vx;
-          node.y += node.vy;
-
-          // Boundary constraints
-          node.x = Math.max(40, Math.min(width - 40, node.x));
-          node.y = Math.max(40, Math.min(height - 40, node.y));
-        });
-
-        return workingNodes;
+      // Constrain boundaries
+      simNodes.forEach((node) => {
+        node.x = Math.max(45, Math.min(width - 45, node.x));
+        node.y = Math.max(45, Math.min(height - 45, node.y));
       });
+    }
 
-      animFrame = requestAnimationFrame(tick);
-    };
+    setNodes(simNodes);
+    setEdges(graphData.edges);
+    setSelectedNode(null);
+  }, [graphData]);
 
-    animFrame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(animFrame);
-  }, [edges, draggedNodeId, nodes.length]);
+
+  // Handle limit change
+  const handleLimitChange = async (newLimit: number) => {
+    setNodeLimit(newLimit);
+    if (onFetchGraph) {
+      setIsFetching(true);
+      try {
+        await onFetchGraph(selectedLawId, newLimit);
+      } catch (_) {
+      } finally {
+        setIsFetching(false);
+      }
+    }
+  };
 
   // Handle Dragging
   const handleNodeMouseDown = (e: React.MouseEvent, node: SimNode) => {
@@ -222,19 +241,8 @@ export default function GraphExplorer({ graphData }: GraphExplorerProps) {
   const handleResetLayout = () => {
     setZoom(1);
     setPan({ x: 0, y: 0 });
-    // Re-jitter nodes
-    setNodes((prevNodes) =>
-      prevNodes.map((node, index) => {
-        const angle = (index / prevNodes.length) * 2 * Math.PI;
-        return {
-          ...node,
-          x: width / 2 + Math.cos(angle) * 150,
-          y: height / 2 + Math.sin(angle) * 150,
-          vx: 0,
-          vy: 0,
-        };
-      })
-    );
+    // Trigger re-layout
+    setNodes((prev) => [...prev]);
   };
 
   // Filter elements to render
@@ -252,18 +260,24 @@ export default function GraphExplorer({ graphData }: GraphExplorerProps) {
     );
   }, [edges, visibleNodesMap]);
 
-  // Determine highlight list (active node neighbors)
-  const highlightedNodeIds = useMemo(() => {
-    const set = new Set<string>();
-    const activeId = hoveredNode || selectedNode?.id;
-    if (!activeId) return set;
+  // Determine active highlighted nodes & edges on hover
+  const { highlightedNodeIds, activeEdgesMap } = useMemo(() => {
+    const nodeSet = new Set<string>();
+    const activeEdges = new Set<string>();
 
-    set.add(activeId);
+    const activeId = hoveredNode || selectedNode?.id;
+    if (!activeId) return { highlightedNodeIds: nodeSet, activeEdgesMap: activeEdges };
+
+    nodeSet.add(activeId);
     visibleEdges.forEach((edge) => {
-      if (edge.source === activeId) set.add(edge.target);
-      if (edge.target === activeId) set.add(edge.source);
+      if (edge.source === activeId || edge.target === activeId) {
+        nodeSet.add(edge.source);
+        nodeSet.add(edge.target);
+        activeEdges.add(`${edge.source}___${edge.target}`);
+      }
     });
-    return set;
+
+    return { highlightedNodeIds: nodeSet, activeEdgesMap: activeEdges };
   }, [visibleEdges, hoveredNode, selectedNode]);
 
   return (
@@ -272,7 +286,7 @@ export default function GraphExplorer({ graphData }: GraphExplorerProps) {
       <div className="relative flex flex-1 flex-col overflow-hidden bg-zinc-50 dark:bg-zinc-950">
         
         {/* Controls Overlay */}
-        <div className="absolute left-4 top-4 z-10 flex gap-2 rounded-xl border border-zinc-200 bg-white/90 p-2 shadow-sm backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-900/90">
+        <div className="absolute left-4 top-4 z-10 flex items-center gap-2 rounded-xl border border-zinc-200 bg-white/90 p-2 shadow-sm backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-900/90">
           <button
             onClick={handleZoomIn}
             title="Zoom In"
@@ -292,9 +306,28 @@ export default function GraphExplorer({ graphData }: GraphExplorerProps) {
             title="Reset Graph Layout"
             className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
           >
-            <RefreshCw className="h-4.5 w-4.5" />
+            <RefreshCw className={`h-4.5 w-4.5 ${isFetching ? 'animate-spin' : ''}`} />
           </button>
+
+          <div className="h-4 w-[1px] bg-zinc-200 dark:bg-zinc-800 mx-1" />
+
+          {/* Node Limit Selector */}
+          <div className="flex items-center gap-1.5 text-xs text-zinc-600 dark:text-zinc-400">
+            <span className="font-medium">Limit:</span>
+            <select
+              value={nodeLimit}
+              onChange={(e) => handleLimitChange(Number(e.target.value))}
+              disabled={isFetching}
+              className="rounded-lg border border-zinc-300 bg-white px-2 py-1 text-xs font-semibold text-zinc-900 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+            >
+              <option value={50} className="bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100">50 Edges</option>
+              <option value={100} className="bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100">100 Edges</option>
+              <option value={200} className="bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100">200 Edges</option>
+              <option value={300} className="bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100">300 Edges</option>
+            </select>
+          </div>
         </div>
+
 
         {/* Filter Toolbar overlay */}
         <div className="absolute right-4 top-4 z-10 flex flex-col gap-2 rounded-xl border border-zinc-200 bg-white/90 p-3 shadow-sm backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-900/90">
@@ -339,7 +372,18 @@ export default function GraphExplorer({ graphData }: GraphExplorerProps) {
               markerHeight="6"
               orient="auto-start-reverse"
             >
-              <path d="M 0 0 L 10 5 L 0 10 z" className="fill-zinc-300 dark:fill-zinc-700" />
+              <path d="M 0 0 L 10 5 L 0 10 z" className="fill-zinc-400 dark:fill-zinc-500" />
+            </marker>
+            <marker
+              id="arrow-active"
+              viewBox="0 0 10 10"
+              refX="24"
+              refY="5"
+              markerWidth="7"
+              markerHeight="7"
+              orient="auto-start-reverse"
+            >
+              <path d="M 0 0 L 10 5 L 0 10 z" className="fill-indigo-600 dark:fill-indigo-400" />
             </marker>
           </defs>
 
@@ -353,30 +397,35 @@ export default function GraphExplorer({ graphData }: GraphExplorerProps) {
                 const tgtNode = visibleNodesMap.get(edge.target);
                 if (!srcNode || !tgtNode) return null;
 
-                const isHighlighted = highlightedNodeIds.size === 0 || 
-                  (highlightedNodeIds.has(edge.source) && highlightedNodeIds.has(edge.target));
+                const isHoveredEdge = activeEdgesMap.has(`${edge.source}___${edge.target}`);
+                const isAnyNodeHovered = Boolean(hoveredNode || selectedNode?.id);
+
+                let lineStyle = 'stroke-zinc-400/80 dark:stroke-zinc-500/80 stroke-[1.5px]';
+                if (isAnyNodeHovered) {
+                  if (isHoveredEdge) {
+                    lineStyle = 'stroke-indigo-600 dark:stroke-indigo-400 stroke-[2.5px] opacity-100';
+                  } else {
+                    lineStyle = 'stroke-zinc-300/20 dark:stroke-zinc-800/20 stroke-[1px] opacity-15';
+                  }
+                }
 
                 return (
-                  <g key={idx} className="transition-opacity duration-200">
+                  <g key={idx} className="transition-all duration-200">
                     <line
                       x1={srcNode.x}
                       y1={srcNode.y}
                       x2={tgtNode.x}
                       y2={tgtNode.y}
-                      markerEnd="url(#arrow)"
-                      className={`stroke-2 transition-all ${
-                        isHighlighted 
-                          ? 'stroke-zinc-300 dark:stroke-zinc-700' 
-                          : 'stroke-zinc-200/30 dark:stroke-zinc-800/10'
-                      }`}
+                      markerEnd={isHoveredEdge ? 'url(#arrow-active)' : 'url(#arrow)'}
+                      className={`transition-all ${lineStyle}`}
                     />
-                    {/* Optional edge label on hover */}
-                    {isHighlighted && (hoveredNode === edge.source || hoveredNode === edge.target) && (
+                    {/* Edge label displayed clearly when edge is active */}
+                    {(isHoveredEdge || (hoveredNode === edge.source || hoveredNode === edge.target)) && (
                       <text
                         x={(srcNode.x + tgtNode.x) / 2}
                         y={(srcNode.y + tgtNode.y) / 2 - 4}
                         textAnchor="middle"
-                        className="fill-zinc-400 dark:fill-zinc-500 font-medium text-[8px] select-none"
+                        className="fill-indigo-600 dark:fill-indigo-400 font-bold text-[9px] select-none"
                       >
                         {edge.type}
                       </text>
@@ -390,24 +439,27 @@ export default function GraphExplorer({ graphData }: GraphExplorerProps) {
             <g>
               {visibleNodes.map((node) => {
                 const isSelected = selectedNode?.id === node.id;
-                const isHighlighted = highlightedNodeIds.size === 0 || highlightedNodeIds.has(node.id);
+                const isAnyNodeHovered = Boolean(hoveredNode || selectedNode?.id);
+                const isHighlightedNode = !isAnyNodeHovered || highlightedNodeIds.has(node.id);
                 const colorClasses = getNodeColor(node.label, isSelected);
 
                 return (
                   <g
                     key={node.id}
                     transform={`translate(${node.x}, ${node.y})`}
-                    className="cursor-pointer transition-opacity duration-200"
+                    className={`cursor-pointer transition-opacity duration-200 ${
+                      isHighlightedNode ? 'opacity-100' : 'opacity-20'
+                    }`}
                     onMouseDown={(e) => handleNodeMouseDown(e, node)}
                     onMouseEnter={() => setHoveredNode(node.id)}
                     onMouseLeave={() => setHoveredNode(null)}
                   >
                     {/* Node circle */}
                     <circle
-                      r={node.label === 'Law' ? 18 : 12}
+                      r={node.label === 'Law' ? 20 : node.label === 'Chapter' ? 15 : 11}
                       className={`${colorClasses} stroke-2 transition-all ${
-                        isHighlighted ? 'opacity-100' : 'opacity-20'
-                      } ${isSelected ? 'ring-4 ring-indigo-500/20' : ''}`}
+                        isSelected ? 'ring-4 ring-indigo-500/30' : ''
+                      }`}
                     />
                     
                     {/* Node label text */}
@@ -415,7 +467,7 @@ export default function GraphExplorer({ graphData }: GraphExplorerProps) {
                       dy="24"
                       textAnchor="middle"
                       className={`select-none text-[10px] font-semibold transition-all ${
-                        isHighlighted 
+                        isHighlightedNode 
                           ? 'fill-zinc-800 dark:fill-zinc-200' 
                           : 'fill-zinc-400/20 dark:fill-zinc-600/10'
                       }`}

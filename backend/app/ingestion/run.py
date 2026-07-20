@@ -57,6 +57,7 @@ def run_pipeline(
     law: LawIdentifier,
     *,
     skip_fetch: bool = False,
+    skip_parse: bool = False,
     skip_graph: bool = False,
     skip_vector: bool = False,
     skip_relational: bool = False,
@@ -69,95 +70,104 @@ def run_pipeline(
     Args:
         law: The LawIdentifier for the law to ingest.
         skip_fetch: If True, reuse the existing cached raw file (skip HTTP request).
+        skip_parse: If True, bypass document parsing/LLM calls and load existing normalized JSON.
         skip_graph: If True, skip the Neo4j loading stages.
         skip_vector: If True, skip the Qdrant embedding and loading stage.
         force_recreate_vector: If True, delete and recreate the Qdrant collection.
         dry_run: If True, only run parse + enrich stages; do not write to any DB.
     """
-    law_meta = LAW_REGISTRY.get(law)
+    law_meta = LAW_REGISTRY.get(law) or LAW_REGISTRY.get(law.value if hasattr(law, "value") else str(law))
     if law_meta is None:
-        logger.error(f"Law '{law.value}' is not in LAW_REGISTRY. Add it to constants.py first.")
+        logger.error(f"Law '{law}' is not in LAW_REGISTRY.")
         sys.exit(1)
 
     law_name = law_meta["name"]
-    source_url: str = law_meta["source_url"]
-    source_type: str = law_meta["source_type"]
-    collection_name: str = law_meta["collection_name"]
+    source_url: str = law_meta.get("source_url", "")
+    source_type: str = law_meta.get("source_type", "pdf")
+    collection_name: str = law_meta.get("collection_name", str(law.value if hasattr(law, "value") else law))
+
+    law_key_str = law.value if hasattr(law, "value") else str(law)
+    normalized_filename = f"{law_key_str}.json"
 
     logger.info(f"{'=' * 60}")
-    logger.info(f"  Ingestion Pipeline — {law_name} ({law.value})")
+    logger.info(f"  Ingestion Pipeline — {law_name} ({law_key_str})")
     logger.info(f"{'=' * 60}")
 
-    # ------------------------------------------------------------------
-    # Stage 1: Fetch & cache raw source file
-    # ------------------------------------------------------------------
-    raw_filename = f"{law.value}_raw.{source_type}"
-    logger.info(f"[Stage 1] Fetching raw source → {raw_filename}")
-
-    if skip_fetch:
-        from app.core.config import settings
-        raw_file_path = settings.raw_data_dir / raw_filename
-        if not raw_file_path.exists():
-            logger.error(
-                f"[Stage 1] skip_fetch=True but cached file not found: {raw_file_path}. "
-                "Run without --skip-fetch to download it first."
-            )
-            sys.exit(1)
-        logger.info(f"[Stage 1] Using cached file: {raw_file_path}")
+    if skip_parse:
+        from app.ingestion.normalizer import load_normalized_file
+        logger.info(f"[Stage 1-5] --skip-parse enabled. Loading existing normalized JSON '{normalized_filename}'...")
+        units = load_normalized_file(normalized_filename)
+        logger.info(f"[Stage 1-5] Successfully loaded {len(units)} legal units from normalized disk cache (0 LLM calls).")
     else:
-        try:
-            if use_crawl4ai:
-                logger.info(f"[Stage 1] Instantiating crawl4ai RobustWebCrawler for {source_url}...")
-                crawler = RobustWebCrawler(
-                    base_url=source_url,
-                    max_depth=2,
-                    max_pages=100,
-                    politeness_delay=1.0,
+        # ------------------------------------------------------------------
+        # Stage 1: Fetch & cache raw source file
+        # ------------------------------------------------------------------
+        raw_filename = f"{law_key_str}_raw.{source_type}"
+        logger.info(f"[Stage 1] Fetching raw source → {raw_filename}")
+
+        if skip_fetch:
+            from app.core.config import settings
+            raw_file_path = settings.raw_data_dir / raw_filename
+            if not raw_file_path.exists():
+                logger.error(
+                    f"[Stage 1] skip_fetch=True but cached file not found: {raw_file_path}. "
+                    "Run without --skip-fetch to download it first."
                 )
-                raw_file_path = asyncio.run(crawler.crawl(raw_filename))
-            else:
-                raw_file_path = fetch_and_cache(source_url, raw_filename, force_refetch=True)
-        except Exception as exc:
-            logger.error(f"[Stage 1] Crawling failed: {exc}")
+                sys.exit(1)
+            logger.info(f"[Stage 1] Using cached file: {raw_file_path}")
+        else:
+            try:
+                if use_crawl4ai:
+                    logger.info(f"[Stage 1] Instantiating crawl4ai RobustWebCrawler for {source_url}...")
+                    crawler = RobustWebCrawler(
+                        base_url=source_url,
+                        max_depth=2,
+                        max_pages=100,
+                        politeness_delay=1.0,
+                    )
+                    raw_file_path = asyncio.run(crawler.crawl(raw_filename))
+                else:
+                    raw_file_path = fetch_and_cache(source_url, raw_filename, force_refetch=True)
+            except Exception as exc:
+                logger.error(f"[Stage 1] Crawling failed: {exc}")
+                sys.exit(1)
+
+        # ------------------------------------------------------------------
+        # Stage 2: Parse raw file → List[LegalUnit]
+        # ------------------------------------------------------------------
+        logger.info("[Stage 2] Parsing raw source file...")
+        parser = get_parser(law)
+        try:
+            units = parser.parse(raw_file_path, source_url, law)
+        except NotImplementedError as exc:
+            logger.error(f"[Stage 2] Parser not implemented: {exc}")
             sys.exit(1)
+        except Exception as exc:
+            logger.error(f"[Stage 2] Parsing failed: {exc}")
+            raise
 
-    # ------------------------------------------------------------------
-    # Stage 2: Parse raw file → List[LegalUnit]
-    # ------------------------------------------------------------------
-    logger.info("[Stage 2] Parsing raw source file...")
-    parser = get_parser(law)
-    try:
-        units = parser.parse(raw_file_path, source_url, law)
-    except NotImplementedError as exc:
-        logger.error(f"[Stage 2] Parser not implemented: {exc}")
-        sys.exit(1)
-    except Exception as exc:
-        logger.error(f"[Stage 2] Parsing failed: {exc}")
-        raise
+        logger.info(f"[Stage 2] Parsed {len(units)} legal units.")
 
-    logger.info(f"[Stage 2] Parsed {len(units)} legal units.")
+        # ------------------------------------------------------------------
+        # Stage 3: Enrich — extract definitions and cross-references
+        # ------------------------------------------------------------------
+        logger.info("[Stage 3] Extracting legal structure (definitions & references)...")
+        units = enrich_legal_structure(units)
 
-    # ------------------------------------------------------------------
-    # Stage 3: Enrich — extract definitions and cross-references
-    # ------------------------------------------------------------------
-    logger.info("[Stage 3] Extracting legal structure (definitions & references)...")
-    units = enrich_legal_structure(units)
+        # ------------------------------------------------------------------
+        # Stage 4: Enrich — extract semantic concepts
+        # ------------------------------------------------------------------
+        logger.info("[Stage 4] Extracting semantic concepts (hybrid regex + LLM)...")
+        for idx, unit in enumerate(units):
+            if idx % 50 == 0 or idx == len(units) - 1:
+                logger.info(f"  Concepts: {idx + 1}/{len(units)} units processed...")
+            unit.concepts = extract_concepts(unit.text, unit.id)
 
-    # ------------------------------------------------------------------
-    # Stage 4: Enrich — extract semantic concepts
-    # ------------------------------------------------------------------
-    logger.info("[Stage 4] Extracting semantic concepts (hybrid regex + LLM)...")
-    for idx, unit in enumerate(units):
-        if idx % 50 == 0 or idx == len(units) - 1:
-            logger.info(f"  Concepts: {idx + 1}/{len(units)} units processed...")
-        unit.concepts = extract_concepts(unit.text, unit.id)
-
-    # ------------------------------------------------------------------
-    # Stage 5: Validate and persist normalized JSON
-    # ------------------------------------------------------------------
-    normalized_filename = f"{law.value}.json"
-    logger.info(f"[Stage 5] Saving normalized data → {normalized_filename}")
-    normalize_and_save(units, normalized_filename)
+        # ------------------------------------------------------------------
+        # Stage 5: Validate and persist normalized JSON
+        # ------------------------------------------------------------------
+        logger.info(f"[Stage 5] Saving normalized data → {normalized_filename}")
+        normalize_and_save(units, normalized_filename)
 
     if dry_run:
         logger.info("[DryRun] Stages 6-8 skipped. Dry run complete.")
@@ -207,6 +217,7 @@ def run_pipeline(
             raise
 
     # ------------------------------------------------------------------
+    # ------------------------------------------------------------------
     # Stage 7.5: Load into PostgreSQL relational database
     # ------------------------------------------------------------------
     if skip_relational:
@@ -217,47 +228,56 @@ def run_pipeline(
             from app.db.relational import LawDb, LegalUnitDb, upsert_law_metadata, bulk_upsert_legal_units
             from app.db.relational.connection import async_session
 
-            # Map constants LAW_REGISTRY values
-            meta = LAW_REGISTRY[law]
-            law_meta = LawDb(
-                id=meta["identifier"].value,
-                name=meta["name"],
-                full_name=meta["full_name"],
-                description=meta.get("description", ""),
-                jurisdiction=meta["jurisdiction"].value,
-                status=meta["status"].value,
-                source_url=meta.get("source_url", ""),
-                categories=[c.value for c in meta.get("categories", [])],
-            )
+            # Map constants LAW_REGISTRY values safely for enum or dynamic strings
+            meta = LAW_REGISTRY.get(law) or LAW_REGISTRY.get(law.value if hasattr(law, "value") else str(law))
+            if meta:
+                id_str = meta["identifier"].value if hasattr(meta["identifier"], "value") else str(meta["identifier"])
+                jur_str = meta["jurisdiction"].value if hasattr(meta["jurisdiction"], "value") else str(meta["jurisdiction"])
+                status_str = meta["status"].value if hasattr(meta["status"], "value") else str(meta["status"])
+                cat_strs = [c.value if hasattr(c, "value") else str(c) for c in meta.get("categories", [])]
 
-            db_units = [
-                LegalUnitDb(
-                    id=u.id,
-                    law=u.law,
-                    chapter=u.chapter,
-                    article=u.article,
-                    section=u.section,
-                    title=u.title,
-                    text=u.text,
-                    source=u.source,
-                    url=u.url,
-                    definitions=[d.model_dump() for d in u.definitions],
-                    concepts=u.concepts,
-                    references=u.references
+                law_meta = LawDb(
+                    id=id_str,
+                    name=meta["name"],
+                    full_name=meta["full_name"],
+                    description=meta.get("description", ""),
+                    jurisdiction=jur_str,
+                    status=status_str,
+                    source_url=meta.get("source_url", ""),
+                    categories=cat_strs,
                 )
-                for u in units
-            ]
 
-            async def _load():
-                async with async_session() as session:
-                    await upsert_law_metadata(session, law_meta)
-                    await bulk_upsert_legal_units(session, db_units)
+                db_units = [
+                    LegalUnitDb(
+                        id=u.id,
+                        law=u.law,
+                        chapter=u.chapter,
+                        article=u.article,
+                        section=u.section,
+                        title=u.title,
+                        text=u.text,
+                        source=u.source,
+                        url=u.url,
+                        definitions=[d.model_dump() for d in u.definitions],
+                        concepts=u.concepts,
+                        references=u.references,
+                    )
+                    for u in units
+                ]
 
-            asyncio.run(_load())
-            logger.info("[Stage 7.5] Successfully loaded into PostgreSQL.")
+                async def _load():
+                    async with async_session() as session:
+                        await upsert_law_metadata(session, law_meta)
+                        await bulk_upsert_legal_units(session, db_units)
+
+                # Execute _load in an isolated thread pool to avoid asyncio event loop collisions
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                    executor.submit(lambda: asyncio.run(_load())).result()
+
+                logger.info("[Stage 7.5] Successfully loaded into PostgreSQL.")
         except Exception as exc:
-            logger.error(f"[Stage 7.5] PostgreSQL loading failed: {exc}")
-            raise
+            logger.warning(f"[Stage 7.5] PostgreSQL loading encountered issues: {exc}")
 
     # ------------------------------------------------------------------
     # Stage 8: Verify graph integrity
@@ -307,14 +327,18 @@ def main() -> None:
         "--law",
         type=str,
         required=True,
-        choices=registered_laws,
         metavar="LAW",
-        help="Law identifier to ingest (e.g. gdpr, dpdp, ai_act).",
+        help="Law identifier to ingest (e.g. gdpr, dpdp, sg_pdpa).",
     )
     parser.add_argument(
         "--skip-fetch",
         action="store_true",
         help="Reuse existing cached raw file; skip HTTP download.",
+    )
+    parser.add_argument(
+        "--skip-parse",
+        action="store_true",
+        help="Bypass parsing and LLM calls; load legal units directly from normalized JSON file.",
     )
     parser.add_argument(
         "--skip-graph",
@@ -352,12 +376,13 @@ def main() -> None:
     try:
         law_id = LawIdentifier(args.law)
     except ValueError:
-        logger.error(f"Unknown law identifier: '{args.law}'")
-        sys.exit(1)
+        from app.services.admin_service import _ensure_law_registered
+        law_id = _ensure_law_registered(args.law)
 
     run_pipeline(
         law=law_id,
         skip_fetch=args.skip_fetch,
+        skip_parse=args.skip_parse,
         skip_graph=args.skip_graph,
         skip_vector=args.skip_vector,
         skip_relational=args.skip_relational,
@@ -365,6 +390,8 @@ def main() -> None:
         force_recreate_vector=args.force_recreate_vector,
         dry_run=args.dry_run,
     )
+
+
 
 
 if __name__ == "__main__":

@@ -7,11 +7,7 @@ from fastapi.concurrency import run_in_threadpool
 from app.core.config import settings
 from app.core.logging import logger
 from app.core.constants import LAW_REGISTRY, LawStatus
-from app.rag.llm.orchestrator import generate_answer
-from app.rag.retrieval.graph_search import graph_search_by_query
-from app.rag.retrieval.keyword_search import keyword_search
-from app.rag.retrieval.merger import merge_and_rank
-from app.rag.retrieval.vector_search import vector_search
+
 
 class AskRequest(BaseModel):
     """Request model for the /ask endpoint."""
@@ -99,8 +95,15 @@ class AskService:
 
     async def answer_question(self, request: AskRequest) -> AskResponse:
         """Core business logic for answering a legal question via the hybrid RAG pipeline."""
+        from app.rag.llm.orchestrator import generate_answer
+        from app.rag.retrieval.graph_search import graph_search_by_query
+        from app.rag.retrieval.keyword_search import keyword_search
+        from app.rag.retrieval.merger import merge_and_rank
+        from app.rag.retrieval.vector_search import vector_search
+
         if not request.question.strip():
             raise HTTPException(status_code=400, detail="Question cannot be empty.")
+
 
         question = request.question.strip()
         law_filter = request.law.upper() if request.law else None
