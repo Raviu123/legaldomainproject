@@ -185,6 +185,15 @@ class Settings(BaseModel):
         return path
 
     @property
+    def markdown_data_dir(self) -> Path:
+        """Directory where converted markdown files are saved for inspection."""
+        path = Path(self.DATA_DIR) / "markdown"
+        if not path.is_absolute():
+            path = (_BASE_DIR / path).resolve()
+        path.mkdir(parents=True, exist_ok=True)
+        return path
+
+    @property
     def cache_dir(self) -> Path:
         """Directory for general-purpose caches (e.g. concept_cache.json)."""
         path = Path(self.DATA_DIR) / "cache"

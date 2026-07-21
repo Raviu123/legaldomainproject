@@ -1,13 +1,14 @@
-"""Universal AI-Powered Legal Document Parser.
+"""Universal Legal Document Parser with Hybrid Extraction Strategy.
 
-Converts any statutory legal document (PDF, HTML, TXT) into normalized LegalUnit objects
-using LLM-driven structured extraction and Markdown boundary analysis.
+Converts any statutory legal document (PDF, HTML, TXT) into normalized LegalUnit objects.
+Uses regex-based parsing first (fast, free), with LLM fallback for complex/unusual documents.
 """
 
 import json
 import re
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Dict, Any, Tuple
+from collections import defaultdict
 
 from pydantic import ValidationError
 
@@ -21,19 +22,16 @@ from app.models.universal_schema import ExtractedDocumentPayload, ExtractedLegal
 
 
 class UniversalAiParser(BaseLegalParser):
-    """Universal AI Legal Parser capable of ingesting any PDF or HTML statutory document.
+    """Hybrid Legal Parser: Regex first, LLM fallback for complex cases."""
 
-    Flow:
-      1. Converts source document into clean Markdown via `markdown_converter`.
-      2. Breaks Markdown into structural chunks (Chapters/Sections).
-      3. Uses LLM structured extraction (JSON mode) to extract section numbers, titles,
-         chapters, body text, defined terms, and cross-references.
-      4. Fallbacks to structural Markdown regex state-machine if LLM is offline.
-      5. Emits standard `List[LegalUnit]` objects ready for Neo4j and Qdrant.
-    """
+    # Quality threshold for regex extraction (0.0 - 1.0)
+    REGEX_QUALITY_THRESHOLD = 0.5  # Lowered to be more permissive
+    
+    # Laws where regex is known to work well - skip LLM entirely
+    FORCE_REGEX_LAWS = ['sg_pdpa', 'pdpa_sg', 'it_act', 'pdp_sg', 'singapore_pdpa']
 
     def source_label(self) -> str:
-        return "universal-ai-parser"
+        return "universal-hybrid-parser"
 
     def parse(
         self,
@@ -45,36 +43,320 @@ class UniversalAiParser(BaseLegalParser):
         if not file_path.exists():
             raise FileNotFoundError(f"Source document file not found: {file_path}")
 
-        logger.info(f"[UniversalAiParser] Converting document to Markdown: {file_path.name}")
+        logger.info(f"[UniversalParser] Converting document to Markdown: {file_path.name}")
         markdown_text = convert_to_markdown(file_path)
 
         if not markdown_text.strip():
-            raise ValueError(f"[UniversalAiParser] Converted document is empty: {file_path.name}")
+            raise ValueError(f"[UniversalParser] Converted document is empty: {file_path.name}")
 
-        # Attempt AI LLM Extraction first
-        units: List[LegalUnit] = []
+        # Save converted markdown for inspection
+        try:
+            md_path = settings.markdown_data_dir / f"{file_path.stem}.md"
+            md_path.write_text(markdown_text, encoding="utf-8")
+            logger.info(f"[UniversalParser] Saved markdown to: {md_path}")
+        except Exception as e:
+            logger.warning(f"[UniversalParser] Could not save markdown: {e}")
+
+        # ================================================================
+        # Check if we should force regex for this law
+        # ================================================================
+        force_regex = any(law_value in str(law.value).lower() for law_value in self.FORCE_REGEX_LAWS)
+        
+        if force_regex:
+            logger.info(f"[UniversalParser] 🔒 Forcing regex for {law.value}")
+            regex_units, quality_score = self._parse_with_regex(markdown_text, url, law)
+            if regex_units and len(regex_units) > 10:
+                logger.info(f"[UniversalParser] ✅ Regex extracted {len(regex_units)} units (skipping LLM)")
+                return regex_units
+
+        # ================================================================
+        # Try Regex Parser FIRST
+        # ================================================================
+        logger.info(f"[UniversalParser] Attempting regex-based parsing...")
+        regex_units, quality_score = self._parse_with_regex(markdown_text, url, law)
+        
+        # ================================================================
+        # Validate Regex Quality
+        # ================================================================
+        if regex_units and len(regex_units) > 10:
+            logger.info(f"[UniversalParser] Regex extracted {len(regex_units)} units (quality: {quality_score:.2f})")
+            
+            if quality_score >= self.REGEX_QUALITY_THRESHOLD or len(regex_units) > 50:
+                logger.info(f"[UniversalParser] ✅ Using regex results")
+                return regex_units
+            else:
+                logger.warning(f"[UniversalParser] Quality below threshold ({quality_score:.2f} < {self.REGEX_QUALITY_THRESHOLD})")
+        
+        # ================================================================
+        # Fallback to LLM
+        # ================================================================
         if settings.OPENAI_API_KEY:
+            logger.info(f"[UniversalParser] 🤖 Falling back to LLM extraction...")
             try:
-                logger.info(f"[UniversalAiParser] Running LLM Structured Extraction on {file_path.name}...")
-                units = self._extract_via_llm(markdown_text, url, law)
+                llm_units = self._extract_via_llm(markdown_text, url, law)
+                if llm_units:
+                    logger.info(f"[UniversalParser] ✅ LLM extracted {len(llm_units)} units")
+                    return llm_units
             except Exception as exc:
-                logger.warning(f"[UniversalAiParser] LLM extraction failed ({exc}), falling back to Heading Regex Parser.")
-                units = []
+                logger.warning(f"[UniversalParser] LLM extraction failed: {exc}")
+        
+        # ================================================================
+        # Return what regex got (better than nothing)
+        # ================================================================
+        if regex_units:
+            logger.warning(f"[UniversalParser] Using fallback regex results ({len(regex_units)} units)")
+            return regex_units
+        
+        raise ValueError(f"[UniversalParser] Failed to extract any legal units from {file_path.name}")
 
-        # Fallback to intelligent Markdown Heading State-Machine Parser if LLM is skipped/failed
-        if not units:
-            logger.info(f"[UniversalAiParser] Processing via Heading Structural Parser...")
-            units = self._extract_via_heading_parser(markdown_text, url, law)
+    # ===================================================================
+    # REGEX-BASED PARSER (NO LLM CALLS)
+    # ===================================================================
+    
+    def _parse_with_regex(
+        self,
+        markdown_text: str,
+        url: str,
+        law: LawIdentifier,
+    ) -> Tuple[List[LegalUnit], float]:
+        """State-machine parser. Universal: works for GDPR, DPDP, PDPA, Privacy Act, etc."""
+        units: List[LegalUnit] = []
+        law_prefix = law.value
 
-        if not units:
-            raise ValueError(f"[UniversalAiParser] Failed to extract any legal units from {file_path.name}")
+        # ── State ────────────────────────────────────────────────────────
+        current_chapter = "General Provisions"
+        current_section_num: Optional[str] = None
+        current_section_title: str = ""
+        current_lines: List[str] = []
+        current_refs: List[str] = []
+        sections_extracted = 0
 
-        logger.info(f"[UniversalAiParser] Successfully parsed {len(units)} legal units for law '{law.value}'.")
-        return units
+        # ── Patterns ──────────────────────────────────────────────────────
+        # NOTE: The markdown converter (markdown_converter.py) prefixes
+        # section/part/schedule header lines with Markdown heading markers
+        # ("#", "##", or "###"). These patterns MUST tolerate 0-3 leading
+        # '#' characters (with optional whitespace) or they will silently
+        # fail to match, causing regex extraction to under-count sections
+        # and trigger an unnecessary (slow, costly) LLM fallback.
 
-    # ------------------------------------------------------------------
-    # LLM Structured Extraction Strategy
-    # ------------------------------------------------------------------
+        # P1: Explicit keyword — "Section 12A", "Sec 5", "Article 3", "Recital 3"
+        EXPLICIT_SEC = re.compile(
+            r"^#{0,3}\s*(?:Section|Sec\.?|Art(?:icle)?|Recital)\s+(\d+[A-Z]?)\b\.?\s*(.*)",
+            re.IGNORECASE,
+        )
+
+        # P2: Dash-only format — "2.—(1) Interpretation", "12A.– Short title"
+        DASH_SEC = re.compile(
+            r"^#{0,3}\s*(\d+[A-Z]?)\s*\.\s*[\u2014\u2013\-]\s*(?:\(\d+\)\s*)?(.*)",
+        )
+
+        # P3: Number-only with dot — "2. Interpretation" (FALLBACK)
+        NUMBER_DOT_SEC = re.compile(
+            r"^#{0,3}\s*(\d+[A-Z]?)\s*\.\s+(.*)",
+        )
+
+        # Part/Chapter/Division headers
+        PART_HDR = re.compile(
+            r"^#{0,3}\s*(?:PART|CHAPTER|TITLE|DIVISION)\s+([IVXLCDM\d]+)\b\s*(?:[\u2014\u2013\-]\s*(.*))?",
+            re.IGNORECASE,
+        )
+
+        # Schedule headers
+        SCHEDULE_HDR = re.compile(
+            r"^#{0,3}\s*(FIRST|SECOND|THIRD|FOURTH|FIFTH|SIXTH|SEVENTH|EIGHTH|NINTH|TENTH|ELEVENTH)\s+SCHEDULE\b",
+            re.IGNORECASE,
+        )
+
+        # Cross-references
+        XREF = re.compile(
+            r"(?:section|subsection|article|clause)\s+(\d+[A-Z]?(?:\s*\([^)]*\))?)",
+            re.IGNORECASE,
+        )
+
+        # ── Quality estimate ───────────────────────────────────────────────
+        # Count unique section markers in raw text
+        total_expected = len(set(
+            re.findall(
+                r"(?:(?:Section|Sec\.?|Art(?:icle)?)\s+\d+[A-Z]?|\b\d+[A-Z]?\s*\.\s*[\u2014\u2013\-]|\b\d+[A-Z]?\s*\.\s+[A-Z])",
+                markdown_text,
+                re.IGNORECASE,
+            )
+        ))
+        if total_expected == 0:
+            total_expected = max(1, len(re.findall(r"^#+\s+\S", markdown_text, re.MULTILINE)))
+
+        # ── Definition extractor ──────────────────────────────────────────
+        def extract_definitions(body: str) -> List[DefinitionModel]:
+            """Extract all definitions from section body."""
+            flat = re.sub(r"\s*\n\s*", " ", body)
+            DEFN = re.compile(
+                r'[\u201c\u201e\u2018\"\']((?:[^\u201d\u201c\u201e\n\"]{1,80}))[\u201d\u2019\"\']'
+                r'\s+(?:means|includes)\s+'
+                r'((?:(?![\u201c\u201e\u2018\"\']\S{1,80}[\u201d\u2019\"\']\s+(?:means|includes))[^;]){5,})'
+                r'(?:;|\Z)',
+                re.IGNORECASE,
+            )
+            seen = set()
+            defs = []
+            for m in DEFN.finditer(flat):
+                term = m.group(1).strip()
+                defn = re.sub(r"\s+", " ", m.group(2)).strip().rstrip(";,")
+                if len(term) > 1 and len(defn) > 5 and term.lower() not in seen:
+                    seen.add(term.lower())
+                    defs.append(DefinitionModel(term=term, definition=defn[:600]))
+            return defs
+
+        # ── Flush helper ───────────────────────────────────────────────────
+        def flush() -> None:
+            nonlocal current_section_num, current_section_title
+            nonlocal current_lines, current_refs, sections_extracted
+
+            if current_section_num is None or not current_lines:
+                return
+            body = "\n".join(current_lines).strip()
+            if not body:
+                return
+
+            # Extract definitions
+            defs = extract_definitions(body)
+            refs = list(dict.fromkeys(current_refs))
+
+            sec_id = re.sub(r"[^\w]", "", current_section_num.lower())
+            title = current_section_title or current_section_num
+            full_text = f"{title}\n{body}" if current_section_title else body
+
+            units.append(LegalUnit(
+                id=f"{law_prefix}:sec{sec_id}",
+                law=law.value.upper(),
+                chapter=current_chapter,
+                article=current_section_num,
+                section=current_section_num,
+                title=title,
+                text=full_text,
+                source=self.source_label(),
+                url=url,
+                definitions=defs,
+                references=refs,
+            ))
+            sections_extracted += 1
+
+            current_section_num = None
+            current_section_title = ""
+            current_lines = []
+            current_refs = []
+
+        # ── Main parsing loop ──────────────────────────────────────────────
+        lines = self._clean_markdown_lines(markdown_text.splitlines())
+        
+        for line in lines:
+            s = line.strip()
+            if not s:
+                continue
+
+            # Schedule header
+            if m := SCHEDULE_HDR.match(s):
+                flush()
+                current_chapter = f"{m.group(1).title()} Schedule"
+                continue
+
+            # Part/Chapter header
+            if m := PART_HDR.match(s):
+                flush()
+                part_num = m.group(1)
+                part_title = (m.group(2) or "").strip()
+                current_chapter = f"Part {part_num}" + (f" — {part_title}" if part_title else "")
+                continue
+
+            # Explicit keyword section (highest priority)
+            if m := EXPLICIT_SEC.match(s):
+                flush()
+                current_section_num = m.group(1)
+                current_section_title = m.group(2).strip().rstrip(".")
+                continue
+
+            # Dash-only format (Commonwealth / Singapore style)
+            if m := DASH_SEC.match(s):
+                flush()
+                current_section_num = m.group(1)
+                current_section_title = m.group(2).strip().rstrip(".")
+                continue
+
+            # Number-only with dot (Fallback for US/India style)
+            if m := NUMBER_DOT_SEC.match(s):
+                # Check if it looks like a section (has title after number)
+                title = m.group(2).strip()
+                if len(title) > 3 and not re.match(r'^[a-z]', title):
+                    flush()
+                    current_section_num = m.group(1)
+                    current_section_title = title.rstrip(".")
+                    continue
+
+            # Accumulate into current section body
+            if current_section_num is not None:
+                for ref in XREF.findall(s):
+                    current_refs.append(ref)
+                current_lines.append(s)
+
+        flush()
+
+        # ── Quality score ─────────────────────────────────────────────────
+        if total_expected > 0:
+            quality_score = min(sections_extracted / total_expected, 1.0)
+        elif units:
+            quality_score = 0.7
+        else:
+            quality_score = 0.0
+
+        return units, quality_score
+
+    def _clean_markdown_lines(self, lines: List[str]) -> List[str]:
+        """Clean markdown lines before parsing."""
+        cleaned = []
+        for line in lines:
+            stripped = line.strip()
+            if not stripped:
+                continue
+            
+            # Remove page numbers
+            if re.match(r'^\s*\d{1,4}\s*$', stripped):
+                continue
+            
+            # Remove boilerplate
+            if self._is_boilerplate(stripped):
+                continue
+            
+            # Remove excessive whitespace
+            stripped = re.sub(r'\s+', ' ', stripped)
+            cleaned.append(stripped)
+        
+        return cleaned
+
+    def _is_boilerplate(self, line: str) -> bool:
+        """Check if line is boilerplate text."""
+        patterns = [
+            r'^THE GAZETTE OF INDIA',
+            r'^PART\s+II',
+            r'^Registered No\.',
+            r'^EXTRAORDINARY',
+            r'^ACT NO\.\s+\d+\s+OF\s+\d{4}',
+            r'^New Delhi,?\s+\w+day',
+            r'^Saka,?\s+\d{4}',
+            r'^\s*[—\-]{3,}\s*$',
+            r'^THE STATUTES OF THE REPUBLIC OF SINGAPORE',
+            r'^Personal Data Protection Act',
+            r'^2020 REVISED EDITION',
+            r'^Prepared and Published by',
+            r'^Informal Consolidation',
+        ]
+        
+        for pattern in patterns:
+            if re.search(pattern, line, re.IGNORECASE):
+                return True
+        return False
+
+    # ===================================================================
+    # LLM EXTRACTION STRATEGY (Fallback)
+    # ===================================================================
 
     def _extract_via_llm(
         self,
@@ -93,13 +375,13 @@ class UniversalAiParser(BaseLegalParser):
         client = OpenAI(**client_args)
 
         chunks = self._chunk_markdown(markdown_text, max_chars=4000)
-        logger.info(f"[UniversalAiParser] Split document into {len(chunks)} LLM chunks.")
+        logger.info(f"[UniversalParser] Split document into {len(chunks)} LLM chunks.")
 
         law_prefix = law.value
         all_units: List[LegalUnit] = []
 
         for idx, chunk in enumerate(chunks, start=1):
-            logger.info(f"[UniversalAiParser] Prompting LLM chunk {idx}/{len(chunks)}...")
+            logger.info(f"[UniversalParser] Processing chunk {idx}/{len(chunks)} with LLM...")
             prompt = self._build_extraction_prompt(chunk, law.value)
 
             try:
@@ -119,7 +401,11 @@ class UniversalAiParser(BaseLegalParser):
                     sec_clean = re.sub(r"[^\w]", "", item.article_or_section.lower()) or f"unit{len(all_units) + 1}"
                     unit_id = f"{law_prefix}:{sec_clean}"
 
-                    defs = [DefinitionModel(term=t, definition=item.body_text[:200]) for t in item.defined_terms]
+                    defs = []
+                    for t in item.defined_terms:
+                        def_text = self._extract_definition_from_text(item.body_text, t)
+                        defs.append(DefinitionModel(term=t, definition=def_text[:500] if def_text else item.body_text[:200]))
+
                     all_units.append(
                         LegalUnit(
                             id=unit_id,
@@ -136,10 +422,24 @@ class UniversalAiParser(BaseLegalParser):
                         )
                     )
             except Exception as err:
-                logger.warning(f"[UniversalAiParser] Error parsing chunk {idx}: {err}")
+                logger.warning(f"[UniversalParser] Error parsing chunk {idx}: {err}")
                 continue
 
         return all_units
+
+    def _extract_definition_from_text(self, text: str, term: str) -> str:
+        """Extract definition for a term from text."""
+        pattern = rf'[“"](?:{re.escape(term)})[“"]\s+means\s+([^;]+(?:;|$))'
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            return match.group(1).strip()
+        
+        pattern = rf'[“"](?:{re.escape(term)})[“"]\s+includes\s+([^;]+(?:;|$))'
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            return match.group(1).strip()
+        
+        return ""
 
     def _build_extraction_prompt(self, markdown_chunk: str, law_name: str) -> str:
         """Constructs prompt for LLM structured extraction."""
@@ -177,100 +477,6 @@ Return ONLY valid JSON matching the schema above."""
         elif isinstance(data, list):
             return [ExtractedLegalUnit(**item) for item in data]
         return []
-
-    # ------------------------------------------------------------------
-    # Markdown Heading Structural Fallback Strategy
-    # ------------------------------------------------------------------
-
-    def _extract_via_heading_parser(
-        self,
-        markdown_text: str,
-        url: str,
-        law: LawIdentifier,
-    ) -> List[LegalUnit]:
-        """State machine parsing Markdown `#` and `##` headings into LegalUnits."""
-        units: List[LegalUnit] = []
-        law_prefix = law.value
-
-        current_chapter = "General Provisions"
-        current_section_num: Optional[str] = None
-        current_section_title: str = ""
-        current_lines: List[str] = []
-
-        section_regex = re.compile(
-            r"^(?:##|#)?\s*(?:(Section|Article|Recital|Rule)\s+)?(\d+[A-Z]?|Recital\s+\d+)\.?\s*(.*)",
-            re.IGNORECASE,
-        )
-        chapter_regex = re.compile(
-            r"^(?:#)\s*(CHAPTER|PART|TITLE)\s+([IVXLCDM\d]+)\s*(?:[—\-–]\s*(.+))?",
-            re.IGNORECASE,
-        )
-
-        def flush():
-            nonlocal current_section_num, current_section_title, current_lines
-            if current_section_num is None:
-                return
-            body = "\n".join(current_lines).strip()
-            if not body:
-                return
-
-            sec_id_clean = re.sub(r"[^\w]", "", current_section_num.lower())
-            unit_id = f"{law_prefix}:sec{sec_id_clean}"
-
-            units.append(
-                LegalUnit(
-                    id=unit_id,
-                    law=law.value.upper(),
-                    chapter=current_chapter,
-                    article=f"Section {current_section_num}",
-                    section=f"Section {current_section_num}",
-                    title=current_section_title or f"Section {current_section_num}",
-                    text=f"{current_section_title}\n{body}" if current_section_title else body,
-                    source=self.source_label(),
-                    url=url,
-                )
-            )
-            current_section_num = None
-            current_section_title = ""
-            current_lines = []
-
-        lines = markdown_text.splitlines()
-        for line in lines:
-            stripped = line.strip()
-            if not stripped:
-                continue
-
-            # Check chapter boundary
-            if m := chapter_regex.match(stripped):
-                flush()
-                chap_type = m.group(1).capitalize()
-                chap_num = m.group(2).upper()
-                chap_title = (m.group(3) or "").strip()
-                current_chapter = f"{chap_type} {chap_num}" + (f" — {chap_title}" if chap_title else "")
-                continue
-
-            # Check section boundary
-            if m := section_regex.match(stripped):
-                flush()
-                prefix = m.group(1) or "Section"
-                sec_num = m.group(2)
-                title = m.group(3) or ""
-                current_section_num = f"{prefix} {sec_num}".strip()
-                current_section_title = title.strip()
-                continue
-
-            # Accumulate body text
-            if current_section_num is not None:
-                current_lines.append(stripped)
-            else:
-                # Initial preamble or unsectioned header
-                if not current_section_num:
-                    current_section_num = "1"
-                    current_section_title = "Preamble / General Provisions"
-                    current_lines.append(stripped)
-
-        flush()
-        return units
 
     def _chunk_markdown(self, text: str, max_chars: int = 4000) -> List[str]:
         """Splits markdown text into logical chunks under max_chars length."""

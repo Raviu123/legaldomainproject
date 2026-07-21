@@ -64,6 +64,45 @@ def _ensure_law_registered(law_name: str) -> Any:
     return matched_id
 
 
+def _get_law_meta(law_id: Any, law_name: str) -> Dict[str, Any]:
+    """Returns LAW_REGISTRY metadata for law_id, rebuilding it if missing (e.g. after a delete)."""
+    meta = LAW_REGISTRY.get(law_id)
+    if meta is not None:
+        return meta
+
+    # Registry entry was removed (e.g. after a delete). Rebuild minimal metadata.
+    law_clean = law_name.lower().replace("-", "_").strip()
+    id_str = law_id.value if hasattr(law_id, "value") else str(law_id)
+
+    jur = Jurisdiction.GLOBAL
+    if "sg" in law_clean or "singapore" in law_clean:
+        jur = Jurisdiction.SG
+    elif "ca" in law_clean or "canada" in law_clean:
+        jur = Jurisdiction.CA
+    elif "jp" in law_clean or "japan" in law_clean:
+        jur = Jurisdiction.JP
+
+    rebuilt = {
+        "identifier": law_id,
+        "name": law_name.upper(),
+        "full_name": f"{law_name.upper()} Statutory Document",
+        "jurisdiction": jur,
+        "categories": [LawCategory.DATA_PRIVACY],
+        "status": LawStatus.ACTIVE,
+        "source_url": "",
+        "source_type": "pdf",
+        "collection_name": id_str,
+        "id_prefix": id_str,
+        "description": f"Re-registered legal framework for {law_name.upper()}.",
+    }
+    logger.info(
+        f"[AdminService] LAW_REGISTRY entry for '{id_str}' was missing (possibly deleted). "
+        "Rebuilt metadata for re-ingestion."
+    )
+    LAW_REGISTRY[law_id] = rebuilt
+    return rebuilt
+
+
 class RegistryEntry(BaseModel):
     """Summary of a law in the registry."""
 
@@ -112,7 +151,7 @@ class AdminService:
     def trigger_ingestion(self, law_name: str, skip_fetch: bool, skip_graph: bool, skip_vector: bool, force_recreate_vector: bool, dry_run: bool, background_tasks: BackgroundTasks) -> IngestResponse:
         """Triggers the ingestion pipeline for a law as a background task."""
         law_id = _ensure_law_registered(law_name)
-        law_meta = LAW_REGISTRY.get(law_id)
+        law_meta = _get_law_meta(law_id, law_name)
 
         logger.info(f"[AdminService] Ingestion triggered for '{law_name}' via Service.")
 
@@ -148,7 +187,7 @@ class AdminService:
     ) -> IngestResponse:
         """Triggers the ingestion pipeline using a directly uploaded file."""
         law_id = _ensure_law_registered(law_name)
-        law_meta = LAW_REGISTRY.get(law_id)
+        law_meta = _get_law_meta(law_id, law_name)
 
         source_type = law_meta.get("source_type", "pdf")
         id_str = law_id.value if hasattr(law_id, "value") else str(law_id)

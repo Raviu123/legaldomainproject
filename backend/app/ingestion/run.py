@@ -103,7 +103,7 @@ def run_pipeline(
         # Stage 1: Fetch & cache raw source file
         # ------------------------------------------------------------------
         raw_filename = f"{law_key_str}_raw.{source_type}"
-        logger.info(f"[Stage 1] Fetching raw source → {raw_filename}")
+        logger.info(f"[Stage 1] Fetching raw source --> {raw_filename}")
 
         if skip_fetch:
             from app.core.config import settings
